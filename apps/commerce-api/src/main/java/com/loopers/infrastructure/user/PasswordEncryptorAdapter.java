@@ -1,15 +1,11 @@
-package com.loopers.support.security;
+package com.loopers.infrastructure.user;
 
+import com.loopers.domain.user.PasswordEncryptor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
-/**
- * BCrypt 알고리즘을 사용한 비밀번호 암호화 구현체
- * <p>
- * Spring Security Crypto의 BCryptPasswordEncoder를 위임받아 사용
- */
 @Component
-public class BCryptPasswordEncryptor implements PasswordEncryptor {
+public class PasswordEncryptorAdapter implements PasswordEncryptor {
 
     private final BCryptPasswordEncoder delegate = new BCryptPasswordEncoder();
 
