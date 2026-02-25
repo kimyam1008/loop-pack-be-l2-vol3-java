@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class BrandTest {
 
@@ -26,6 +27,42 @@ class BrandTest {
 
         assertThat(brand.getName()).isEqualTo("NEW");
         assertThat(brand.getDescription()).isEqualTo("NEW_DESC");
+    }
+
+    @DisplayName("Brand 생성: name이 null이면 예외가 발생한다")
+    @Test
+    void create_fail_nullName() {
+        assertThatThrownBy(() -> Brand.create(null, new BrandDescription("설명")))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("브랜드 정보는 필수입니다");
+    }
+
+    @DisplayName("Brand 생성: description이 null이면 예외가 발생한다")
+    @Test
+    void create_fail_nullDescription() {
+        assertThatThrownBy(() -> Brand.create(new BrandName("LOOPERS"), null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("브랜드 정보는 필수입니다");
+    }
+
+    @DisplayName("Brand 수정: name이 null이면 예외가 발생한다")
+    @Test
+    void update_fail_nullName() {
+        Brand brand = Brand.create(new BrandName("LOOPERS"), new BrandDescription("설명"));
+
+        assertThatThrownBy(() -> brand.update(null, new BrandDescription("새 설명")))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("브랜드 정보는 필수입니다");
+    }
+
+    @DisplayName("Brand 수정: description이 null이면 예외가 발생한다")
+    @Test
+    void update_fail_nullDescription() {
+        Brand brand = Brand.create(new BrandName("LOOPERS"), new BrandDescription("설명"));
+
+        assertThatThrownBy(() -> brand.update(new BrandName("NEW"), null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("브랜드 정보는 필수입니다");
     }
 
     @DisplayName("Brand 삭제/복구: soft delete와 restore가 동작한다")

@@ -72,6 +72,27 @@ class BrandApplicationServiceTest {
         assertThat(result.getContent().getFirst().name()).isEqualTo("LOOPERS");
     }
 
+    @DisplayName("getBrand: 존재하는 브랜드를 단건 조회한다")
+    @Test
+    void getBrand_success() {
+        Long brandId = 1L;
+        Brand brand = Brand.create(new BrandName("LOOPERS"), new BrandDescription("desc"));
+        when(brandRepository.findById(brandId)).thenReturn(Optional.of(brand));
+
+        BrandDto.BrandInfo result = brandApplicationService.getBrand(brandId);
+
+        assertThat(result.name()).isEqualTo("LOOPERS");
+    }
+
+    @DisplayName("getBrand: 존재하지 않는 브랜드면 예외가 발생한다")
+    @Test
+    void getBrand_fail_notFound() {
+        when(brandRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> brandApplicationService.getBrand(99L))
+            .isInstanceOf(BrandNotFoundException.class);
+    }
+
     @DisplayName("update: 브랜드 정보를 수정한다")
     @Test
     void update_success() {
@@ -86,6 +107,22 @@ class BrandApplicationServiceTest {
 
         assertThat(result.name()).isEqualTo("NEW");
         assertThat(result.description()).isEqualTo("NEW_DESC");
+    }
+
+    @DisplayName("update: 같은 이름으로 수정하면 중복 체크를 건너뛰고 성공한다")
+    @Test
+    void update_success_sameName() {
+        Long brandId = 1L;
+        Brand brand = Brand.create(new BrandName("LOOPERS"), new BrandDescription("OLD_DESC"));
+
+        when(brandRepository.findById(brandId)).thenReturn(Optional.of(brand));
+        when(brandRepository.save(brand)).thenReturn(brand);
+
+        BrandDto.BrandInfo result = brandApplicationService.update(brandId, "LOOPERS", "NEW_DESC");
+
+        assertThat(result.name()).isEqualTo("LOOPERS");
+        assertThat(result.description()).isEqualTo("NEW_DESC");
+        verify(brandRepository, never()).existsByName(any());
     }
 
     @DisplayName("update: 존재하지 않는 브랜드면 예외가 발생한다")

@@ -10,6 +10,46 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ProductTest {
 
+    @DisplayName("Product: 재고를 증가시킬 수 있다")
+    @Test
+    void increaseStock_success() {
+        Product product = Product.create(1L, "상품", "설명", BigDecimal.valueOf(1000), 10);
+
+        product.increaseStock(5);
+
+        assertThat(product.getStock()).isEqualTo(15);
+    }
+
+    @DisplayName("Product: 수량이 0 이하이면 재고 증가 시 예외가 발생한다")
+    @Test
+    void increaseStock_fail_invalidQuantity() {
+        Product product = Product.create(1L, "상품", "설명", BigDecimal.valueOf(1000), 10);
+
+        assertThatThrownBy(() -> product.increaseStock(0))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("수량은 1 이상이어야 합니다");
+    }
+
+    @DisplayName("Product: 수량이 0 이하이면 재고 차감 시 예외가 발생한다")
+    @Test
+    void decreaseStock_fail_invalidQuantity() {
+        Product product = Product.create(1L, "상품", "설명", BigDecimal.valueOf(1000), 10);
+
+        assertThatThrownBy(() -> product.decreaseStock(0))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("수량은 1 이상이어야 합니다");
+    }
+
+    @DisplayName("Product: 좋아요를 누르면 좋아요 수가 1 증가한다")
+    @Test
+    void increaseLikeCount_success() {
+        Product product = Product.create(1L, "상품", "설명", BigDecimal.valueOf(1000), 10);
+
+        product.increaseLikeCount();
+
+        assertThat(product.getLikeCount()).isEqualTo(1);
+    }
+
     @DisplayName("Product: 재고가 충분하면 차감할 수 있다")
     @Test
     void decreaseStock_success() {
