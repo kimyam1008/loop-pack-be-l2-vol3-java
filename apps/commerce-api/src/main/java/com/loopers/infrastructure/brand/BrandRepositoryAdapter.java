@@ -7,6 +7,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -33,6 +35,11 @@ public class BrandRepositoryAdapter implements BrandRepository {
     @Override
     public Page<Brand> findAll(Pageable pageable) {
         return brandJpaRepository.findAllByDeletedAtIsNull(pageable);
+    }
+
+    @Override
+    public List<Brand> findAllByIds(Collection<Long> brandIds) {
+        return brandJpaRepository.findAllByIdInAndDeletedAtIsNull(brandIds);
     }
 
     @Override
