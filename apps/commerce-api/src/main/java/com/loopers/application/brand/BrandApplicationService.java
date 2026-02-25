@@ -1,7 +1,6 @@
 package com.loopers.application.brand;
 
 import com.loopers.domain.brand.*;
-import com.loopers.domain.brand.exception.BrandNotDeletedException;
 import com.loopers.domain.brand.exception.BrandNotFoundException;
 import com.loopers.domain.brand.exception.DuplicateBrandNameException;
 import com.loopers.domain.product.Product;
@@ -18,6 +17,7 @@ public class BrandApplicationService {
 
     private final BrandRepository brandRepository;
     private final ProductRepository productRepository;
+    private final BrandDomainService brandDomainService;
 
     @Transactional
     public BrandDto.BrandInfo register(String name, String description) {
@@ -28,7 +28,7 @@ public class BrandApplicationService {
             throw new DuplicateBrandNameException(brandName.value());
         }
 
-        Brand brand = Brand.create(brandName, brandDescription);
+        Brand brand = brandDomainService.createBrand(brandName, brandDescription);
         Brand savedBrand = brandRepository.save(brand);
         return BrandDto.BrandInfo.from(savedBrand);
     }
@@ -59,7 +59,7 @@ public class BrandApplicationService {
             throw new DuplicateBrandNameException(brandName.value());
         }
 
-        brand.update(brandName, brandDescription);
+        brandDomainService.updateBrand(brand, brandName, brandDescription);
         Brand savedBrand = brandRepository.save(brand);
         return BrandDto.BrandInfo.from(savedBrand);
     }
@@ -69,11 +69,11 @@ public class BrandApplicationService {
         Brand brand = brandRepository.findById(brandId)
             .orElseThrow(() -> new BrandNotFoundException(brandId));
 
-        brand.delete();
+        brandDomainService.deleteBrand(brand);
         brandRepository.save(brand);
 
         for (Product product : productRepository.findAllByBrandId(brandId)) {
-            product.delete();
+            brandDomainService.deleteOwnedProduct(product);
             productRepository.save(product);
         }
     }
@@ -83,18 +83,13 @@ public class BrandApplicationService {
         Brand brand = brandRepository.findByIdIncludingDeleted(brandId)
             .orElseThrow(() -> new BrandNotFoundException(brandId));
 
-        if (!brand.isDeleted()) {
-            throw new BrandNotDeletedException(brandId);
-        }
-
-        brand.restore();
+        brandDomainService.restoreBrand(brand, brandId);
         Brand savedBrand = brandRepository.save(brand);
 
         for (Product product : productRepository.findAllByBrandIdIncludingDeleted(brandId)) {
-            if (!product.isDeleted()) {
+            if (!brandDomainService.restoreOwnedProduct(product)) {
                 continue;
             }
-            product.restore();
             productRepository.save(product);
         }
 

@@ -32,7 +32,11 @@ class BrandApplicationServiceTest {
     void setUp() {
         brandRepository = mock(BrandRepository.class);
         productRepository = mock(ProductRepository.class);
-        brandApplicationService = new BrandApplicationService(brandRepository, productRepository);
+        brandApplicationService = new BrandApplicationService(
+            brandRepository,
+            productRepository,
+            new BrandDomainService()
+        );
     }
 
     @DisplayName("register: 유효한 브랜드 정보로 생성에 성공한다")

@@ -6,6 +6,7 @@ import com.loopers.domain.brand.BrandName;
 import com.loopers.domain.brand.BrandRepository;
 import com.loopers.domain.brand.exception.BrandNotFoundException;
 import com.loopers.domain.product.Product;
+import com.loopers.domain.product.ProductDomainService;
 import com.loopers.domain.product.ProductRepository;
 import com.loopers.domain.product.exception.ProductNotDeletedException;
 import com.loopers.domain.product.exception.ProductNotFoundException;
@@ -38,7 +39,11 @@ class ProductApplicationServiceTest {
     void setUp() {
         productRepository = mock(ProductRepository.class);
         brandRepository = mock(BrandRepository.class);
-        productApplicationService = new ProductApplicationService(productRepository, brandRepository);
+        productApplicationService = new ProductApplicationService(
+            productRepository,
+            brandRepository,
+            new ProductDomainService()
+        );
 
         brand = Brand.create(new BrandName("LOOPERS"), new BrandDescription("루퍼스 브랜드"));
     }

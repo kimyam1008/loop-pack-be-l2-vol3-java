@@ -4,8 +4,8 @@ import com.loopers.domain.brand.Brand;
 import com.loopers.domain.brand.BrandRepository;
 import com.loopers.domain.brand.exception.BrandNotFoundException;
 import com.loopers.domain.product.Product;
+import com.loopers.domain.product.ProductDomainService;
 import com.loopers.domain.product.ProductRepository;
-import com.loopers.domain.product.exception.ProductNotDeletedException;
 import com.loopers.domain.product.exception.ProductNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,13 +25,14 @@ public class ProductApplicationService {
 
     private final ProductRepository productRepository;
     private final BrandRepository brandRepository;
+    private final ProductDomainService productDomainService;
 
     @Transactional
     public ProductDto.ProductInfo register(Long brandId, String name, String description, BigDecimal price, Integer stock) {
         Brand brand = brandRepository.findById(brandId)
             .orElseThrow(() -> new BrandNotFoundException(brandId));
 
-        Product product = Product.create(brandId, name, description, price, stock);
+        Product product = productDomainService.createProduct(brandId, name, description, price, stock);
         Product saved = productRepository.save(product);
         return ProductDto.ProductInfo.of(saved, brand.getName());
     }
@@ -76,7 +77,7 @@ public class ProductApplicationService {
     public ProductDto.ProductInfo increaseStock(Long productId, Integer quantity) {
         Product product = productRepository.findById(productId)
             .orElseThrow(() -> new ProductNotFoundException(productId));
-        product.increaseStock(quantity);
+        productDomainService.increaseStock(product, quantity);
         Product saved = productRepository.save(product);
         Brand brand = brandRepository.findById(saved.getBrandId())
             .orElseThrow(() -> new BrandNotFoundException(saved.getBrandId()));
@@ -87,7 +88,7 @@ public class ProductApplicationService {
     public ProductDto.ProductInfo decreaseStock(Long productId, Integer quantity) {
         Product product = productRepository.findById(productId)
             .orElseThrow(() -> new ProductNotFoundException(productId));
-        product.decreaseStock(quantity);
+        productDomainService.decreaseStock(product, quantity);
         Product saved = productRepository.save(product);
         Brand brand = brandRepository.findById(saved.getBrandId())
             .orElseThrow(() -> new BrandNotFoundException(saved.getBrandId()));
@@ -98,7 +99,7 @@ public class ProductApplicationService {
     public void delete(Long productId) {
         Product product = productRepository.findById(productId)
             .orElseThrow(() -> new ProductNotFoundException(productId));
-        product.delete();
+        productDomainService.deleteProduct(product);
         productRepository.save(product);
     }
 
@@ -107,11 +108,7 @@ public class ProductApplicationService {
         Product product = productRepository.findByIdIncludingDeleted(productId)
             .orElseThrow(() -> new ProductNotFoundException(productId));
 
-        if (!product.isDeleted()) {
-            throw new ProductNotDeletedException(productId);
-        }
-
-        product.restore();
+        productDomainService.restoreProduct(product, productId);
         Product saved = productRepository.save(product);
         Brand brand = brandRepository.findByIdIncludingDeleted(saved.getBrandId())
             .orElseThrow(() -> new BrandNotFoundException(saved.getBrandId()));
