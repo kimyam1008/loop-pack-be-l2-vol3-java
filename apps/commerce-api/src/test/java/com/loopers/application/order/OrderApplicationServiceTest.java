@@ -92,6 +92,27 @@ class OrderApplicationServiceTest {
         verify(orderRepository, never()).save(any());
     }
 
+    @DisplayName("placeOrder: 재고가 부족하면 예외가 발생한다")
+    @Test
+    void placeOrder_fail_insufficientStock() {
+        User user = mock(User.class);
+        Product product = Product.create(1L, "신발", "설명", BigDecimal.valueOf(10000), 0);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+
+        assertThatThrownBy(() ->
+            orderApplicationService.placeOrder(
+                userId,
+                List.of(new OrderDto.OrderLineCommand(productId, 1))
+            )
+        ).isInstanceOf(IllegalArgumentException.class)
+         .hasMessageContaining("재고가 부족합니다");
+
+        verify(orderRepository, never()).save(any());
+        verify(productRepository, never()).save(any());
+    }
+
     @DisplayName("placeOrder: 존재하지 않는 상품이면 예외가 발생한다")
     @Test
     void placeOrder_fail_productNotFound() {

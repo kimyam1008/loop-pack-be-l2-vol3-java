@@ -1,7 +1,6 @@
 package com.loopers.domain.brand;
 
 import com.loopers.domain.brand.exception.BrandNotDeletedException;
-import com.loopers.domain.product.Product;
 import org.springframework.stereotype.Component;
 
 /**
@@ -30,15 +29,4 @@ public class BrandDomainService {
         brand.restore();
     }
 
-    public void deleteOwnedProduct(Product product) {
-        product.delete();
-    }
-
-    public boolean restoreOwnedProduct(Product product) {
-        if (!product.isDeleted()) {
-            return false;
-        }
-        product.restore();
-        return true;
-    }
 }

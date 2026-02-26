@@ -73,7 +73,7 @@ public class BrandApplicationService {
         brandRepository.save(brand);
 
         for (Product product : productRepository.findAllByBrandId(brandId)) {
-            brandDomainService.deleteOwnedProduct(product);
+            product.delete();
             productRepository.save(product);
         }
     }
@@ -87,9 +87,10 @@ public class BrandApplicationService {
         Brand savedBrand = brandRepository.save(brand);
 
         for (Product product : productRepository.findAllByBrandIdIncludingDeleted(brandId)) {
-            if (!brandDomainService.restoreOwnedProduct(product)) {
+            if (!product.isDeleted()) {
                 continue;
             }
+            product.restore();
             productRepository.save(product);
         }
 
