@@ -71,12 +71,13 @@ public class LikeApplicationService {
         Like existing = likeRepository.findByUserIdAndProductIdIncludingDeleted(userId, productId)
             .orElse(null);
 
-        LikeDomainService.LikeProcessResult result = likeDomainService.like(userId, productId, existing, product);
+        LikeDomainService.LikeProcessResult result = likeDomainService.like(userId, productId, existing);
 
         if (!result.requiresPersistence()) {
             return new LikeDto.LikeResult(LikeDto.LikeInfo.from(result.like()), true);
         }
 
+        product.increaseLikeCount();
         Like saved = likeRepository.save(result.like());
         productRepository.save(product);
         return new LikeDto.LikeResult(LikeDto.LikeInfo.from(saved), false);
@@ -98,10 +99,11 @@ public class LikeApplicationService {
         Like like = likeRepository.findByUserIdAndProductId(userId, productId)
             .orElse(null);
 
-        if (!likeDomainService.unlike(like, product)) {
+        if (!likeDomainService.unlike(like)) {
             return;
         }
 
+        product.decreaseLikeCount();
         likeRepository.save(like);
         productRepository.save(product);
     }

@@ -49,7 +49,7 @@ public class OrderApplicationService {
         userRepository.findById(userId)
             .orElseThrow(() -> new UserNotFoundException(userId));
 
-        List<OrderDomainService.ProductOrderLine> orderLines = new ArrayList<>();
+        List<OrderItem> orderItems = new ArrayList<>();
         Map<Long, Product> touchedProducts = new LinkedHashMap<>();
 
         if (items != null) {
@@ -61,12 +61,15 @@ public class OrderApplicationService {
                 Product product = productRepository.findById(item.productId())
                     .orElseThrow(() -> new ProductNotFoundException(item.productId()));
 
-                orderLines.add(new OrderDomainService.ProductOrderLine(product, item.quantity()));
+                product.decreaseStock(item.quantity());
+                orderItems.add(OrderItem.createSnapshot(
+                    product.getId(), product.getName(), product.getPrice(), item.quantity()
+                ));
                 touchedProducts.put(product.getId(), product);
             }
         }
 
-        Order order = orderDomainService.createOrder(userId, orderLines);
+        Order order = orderDomainService.createOrder(userId, orderItems);
         Order savedOrder = orderRepository.save(order);
 
         for (Product touchedProduct : touchedProducts.values()) {
@@ -96,25 +99,24 @@ public class OrderApplicationService {
         Order order = orderRepository.findByIdAndUserId(orderId, userId)
             .orElseThrow(() -> new OrderNotFoundException(orderId));
 
-        List<OrderDomainService.ProductOrderLine> restoreLines = new ArrayList<>();
         Map<Long, Product> touchedProducts = new LinkedHashMap<>();
-
-        for (OrderItem orderItem : order.getOrderItems()) {
+        for (com.loopers.domain.order.OrderItem orderItem : order.getOrderItems()) {
             Product product = productRepository.findById(orderItem.getProductId())
                 .orElseThrow(() -> new ProductNotFoundException(orderItem.getProductId()));
-            restoreLines.add(new OrderDomainService.ProductOrderLine(product, orderItem.getQuantity()));
             touchedProducts.put(product.getId(), product);
         }
 
-        if (!orderDomainService.cancelOrder(order, restoreLines)) {
+        if (!orderDomainService.cancelOrder(order)) {
             return OrderDto.OrderInfo.from(order);
         }
 
-        Order savedOrder = orderRepository.save(order);
-        for (Product touchedProduct : touchedProducts.values()) {
-            productRepository.save(touchedProduct);
+        for (com.loopers.domain.order.OrderItem orderItem : order.getOrderItems()) {
+            Product product = touchedProducts.get(orderItem.getProductId());
+            product.increaseStock(orderItem.getQuantity());
+            productRepository.save(product);
         }
 
+        Order savedOrder = orderRepository.save(order);
         return OrderDto.OrderInfo.from(savedOrder);
     }
 

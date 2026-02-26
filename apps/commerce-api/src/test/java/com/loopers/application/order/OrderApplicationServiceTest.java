@@ -206,12 +206,7 @@ class OrderApplicationServiceTest {
     }
 
     private Order createOrder(Long userId, Long productId, Integer quantity, BigDecimal price) {
-        Product product = mock(Product.class);
-        when(product.getId()).thenReturn(productId);
-        when(product.getName()).thenReturn("테스트상품-" + productId);
-        when(product.getPrice()).thenReturn(price);
-
-        OrderItem orderItem = OrderItem.createSnapshot(product, quantity);
+        OrderItem orderItem = OrderItem.createSnapshot(productId, "테스트상품-" + productId, price, quantity);
         return Order.create(userId, List.of(orderItem));
     }
 }

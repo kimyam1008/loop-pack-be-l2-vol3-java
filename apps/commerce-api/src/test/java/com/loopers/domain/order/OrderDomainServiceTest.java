@@ -1,7 +1,6 @@
 package com.loopers.domain.order;
 
 import com.loopers.domain.order.exception.EmptyOrderItemException;
-import com.loopers.domain.product.Product;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,7 +10,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.*;
 
 class OrderDomainServiceTest {
 
@@ -22,20 +20,13 @@ class OrderDomainServiceTest {
         orderDomainService = new OrderDomainService();
     }
 
-    @DisplayName("createOrder: 주문 생성 시 재고를 차감하고 스냅샷 항목을 만든다")
+    @DisplayName("createOrder: 주문 항목이 주어지면 PENDING 상태의 주문을 생성한다")
     @Test
     void createOrder_success() {
-        Product product = mock(Product.class);
-        when(product.getId()).thenReturn(1L);
-        when(product.getName()).thenReturn("테스트 상품");
-        when(product.getPrice()).thenReturn(BigDecimal.valueOf(2000));
+        OrderItem orderItem = OrderItem.createSnapshot(1L, "테스트 상품", BigDecimal.valueOf(2000), 3);
 
-        Order order = orderDomainService.createOrder(
-            10L,
-            List.of(new OrderDomainService.ProductOrderLine(product, 3))
-        );
+        Order order = orderDomainService.createOrder(10L, List.of(orderItem));
 
-        verify(product).decreaseStock(3);
         assertThat(order.getUserId()).isEqualTo(10L);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
         assertThat(order.getOrderItems()).hasSize(1);
@@ -50,69 +41,39 @@ class OrderDomainServiceTest {
             .hasMessageContaining("주문 항목은 1개 이상이어야 합니다");
     }
 
-    @DisplayName("createOrder: 재고가 부족하면 도메인 예외를 전파한다")
+    @DisplayName("createOrder: 여러 항목이 있으면 totalAmount가 합산된다")
     @Test
-    void createOrder_fail_notEnoughStock() {
-        Product product = mock(Product.class);
-        doThrow(new IllegalArgumentException("재고가 부족합니다"))
-            .when(product).decreaseStock(2);
+    void createOrder_totalAmount_summed() {
+        OrderItem item1 = OrderItem.createSnapshot(1L, "상품A", BigDecimal.valueOf(1000), 2);
+        OrderItem item2 = OrderItem.createSnapshot(2L, "상품B", BigDecimal.valueOf(3000), 1);
 
-        assertThatThrownBy(() ->
-            orderDomainService.createOrder(
-                10L,
-                List.of(new OrderDomainService.ProductOrderLine(product, 2))
-            )
-        )
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("재고가 부족합니다");
+        Order order = orderDomainService.createOrder(10L, List.of(item1, item2));
+
+        assertThat(order.getTotalAmount()).isEqualByComparingTo("5000");
     }
 
-    @DisplayName("cancelOrder: 주문 취소 시 재고를 복구한다")
+    @DisplayName("cancelOrder: PENDING 주문을 취소하면 CANCELLED 상태가 되고 true를 반환한다")
     @Test
     void cancelOrder_success() {
-        Product placeProduct = mock(Product.class);
-        when(placeProduct.getId()).thenReturn(1L);
-        when(placeProduct.getName()).thenReturn("테스트 상품");
-        when(placeProduct.getPrice()).thenReturn(BigDecimal.valueOf(1000));
+        OrderItem orderItem = OrderItem.createSnapshot(1L, "테스트 상품", BigDecimal.valueOf(1000), 2);
+        Order order = orderDomainService.createOrder(10L, List.of(orderItem));
 
-        Order order = orderDomainService.createOrder(
-            10L,
-            List.of(new OrderDomainService.ProductOrderLine(placeProduct, 2))
-        );
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
-
-        Product restoreProduct = mock(Product.class);
-        boolean cancelled = orderDomainService.cancelOrder(
-            order,
-            List.of(new OrderDomainService.ProductOrderLine(restoreProduct, 2))
-        );
+        boolean cancelled = orderDomainService.cancelOrder(order);
 
         assertThat(cancelled).isTrue();
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-        verify(restoreProduct).increaseStock(2);
     }
 
-    @DisplayName("cancelOrder: 이미 취소된 주문이면 재고 복구를 수행하지 않는다")
+    @DisplayName("cancelOrder: 이미 취소된 주문이면 false를 반환하고 상태는 변하지 않는다")
     @Test
     void cancelOrder_idempotent_whenAlreadyCancelled() {
-        Product placeProduct = mock(Product.class);
-        when(placeProduct.getId()).thenReturn(1L);
-        when(placeProduct.getName()).thenReturn("테스트 상품");
-        when(placeProduct.getPrice()).thenReturn(BigDecimal.valueOf(1000));
-
-        Order order = orderDomainService.createOrder(
-            10L,
-            List.of(new OrderDomainService.ProductOrderLine(placeProduct, 1))
-        );
+        OrderItem orderItem = OrderItem.createSnapshot(1L, "테스트 상품", BigDecimal.valueOf(1000), 1);
+        Order order = orderDomainService.createOrder(10L, List.of(orderItem));
         order.cancel();
 
-        Product restoreProduct = mock(Product.class);
-        boolean cancelled = orderDomainService.cancelOrder(
-            order,
-            List.of(new OrderDomainService.ProductOrderLine(restoreProduct, 1))
-        );
+        boolean cancelled = orderDomainService.cancelOrder(order);
 
         assertThat(cancelled).isFalse();
-        verify(restoreProduct, never()).increaseStock(anyInt());
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
     }
 }

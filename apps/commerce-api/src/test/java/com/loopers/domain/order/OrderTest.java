@@ -1,7 +1,6 @@
 package com.loopers.domain.order;
 
 import com.loopers.domain.order.exception.InvalidOrderStatusTransitionException;
-import com.loopers.domain.product.Product;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -10,8 +9,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class OrderTest {
 
@@ -82,10 +79,6 @@ class OrderTest {
     }
 
     private OrderItem createSnapshotItem(Long productId, String productName, BigDecimal price, Integer quantity) {
-        Product product = mock(Product.class);
-        when(product.getId()).thenReturn(productId);
-        when(product.getName()).thenReturn(productName);
-        when(product.getPrice()).thenReturn(price);
-        return OrderItem.createSnapshot(product, quantity);
+        return OrderItem.createSnapshot(productId, productName, price, quantity);
     }
 }

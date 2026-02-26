@@ -1,7 +1,6 @@
 package com.loopers.domain.order;
 
 import com.loopers.domain.BaseEntity;
-import com.loopers.domain.product.Product;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -48,22 +47,22 @@ public class OrderItem extends BaseEntity {
         this.subtotal = subtotal;
     }
 
-    public static OrderItem createSnapshot(Product product, Integer quantity) {
-        if (product == null) {
-            throw new IllegalArgumentException("상품 정보는 필수입니다");
+    public static OrderItem createSnapshot(Long productId, String productName, BigDecimal productPrice, Integer quantity) {
+        if (productId == null || productId <= 0) {
+            throw new IllegalArgumentException("상품 ID는 필수입니다");
+        }
+        if (productName == null || productName.isBlank()) {
+            throw new IllegalArgumentException("상품명은 필수입니다");
+        }
+        if (productPrice == null || productPrice.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("상품 가격은 0 이상이어야 합니다");
         }
         if (quantity == null || quantity <= 0) {
             throw new IllegalArgumentException("주문 수량은 1 이상이어야 합니다");
         }
 
-        BigDecimal subtotal = product.getPrice().multiply(BigDecimal.valueOf(quantity));
-        return new OrderItem(
-            product.getId(),
-            product.getName(),
-            product.getPrice(),
-            quantity,
-            subtotal
-        );
+        BigDecimal subtotal = productPrice.multiply(BigDecimal.valueOf(quantity));
+        return new OrderItem(productId, productName, productPrice, quantity, subtotal);
     }
 
     void assignOrder(Order order) {
