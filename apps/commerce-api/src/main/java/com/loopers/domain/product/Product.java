@@ -52,6 +52,13 @@ public class Product extends BaseEntity {
         return new Product(brandId, name, description, price, stock, 0);
     }
 
+    public void updateInfo(String name, String description, BigDecimal price, Integer stock) {
+        this.name = normalizeName(name);
+        this.description = normalizeDescription(description);
+        this.price = validatePrice(price);
+        this.stock = validateStock(stock);
+    }
+
     public void increaseStock(Integer quantity) {
         validateQuantity(quantity);
         this.stock += quantity;
@@ -90,21 +97,46 @@ public class Product extends BaseEntity {
         if (this.brandId == null || this.brandId <= 0) {
             throw new IllegalArgumentException("브랜드 ID는 필수입니다");
         }
-        if (this.name == null || this.name.isBlank()) {
-            throw new IllegalArgumentException("상품명은 필수입니다");
-        }
-        if (this.name.length() > 200) {
-            throw new IllegalArgumentException("상품명은 200자 이하여야 합니다");
-        }
-        if (this.price == null || this.price.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("상품 가격은 0 이상이어야 합니다");
-        }
-        if (this.stock == null || this.stock < 0) {
-            throw new IllegalArgumentException("재고는 0 이상이어야 합니다");
-        }
+        this.name = normalizeName(this.name);
+        this.description = normalizeDescription(this.description);
+        this.price = validatePrice(this.price);
+        this.stock = validateStock(this.stock);
         if (this.likeCount == null || this.likeCount < 0) {
             throw new IllegalArgumentException("좋아요 수는 0 이상이어야 합니다");
         }
+    }
+
+    private String normalizeName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("상품명은 필수입니다");
+        }
+
+        String normalized = name.trim();
+        if (normalized.length() > 200) {
+            throw new IllegalArgumentException("상품명은 200자 이하여야 합니다");
+        }
+        return normalized;
+    }
+
+    private String normalizeDescription(String description) {
+        if (description == null) {
+            return "";
+        }
+        return description.trim();
+    }
+
+    private BigDecimal validatePrice(BigDecimal price) {
+        if (price == null || price.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("상품 가격은 0 이상이어야 합니다");
+        }
+        return price;
+    }
+
+    private Integer validateStock(Integer stock) {
+        if (stock == null || stock < 0) {
+            throw new IllegalArgumentException("재고는 0 이상이어야 합니다");
+        }
+        return stock;
     }
 
     private void validateQuantity(Integer quantity) {

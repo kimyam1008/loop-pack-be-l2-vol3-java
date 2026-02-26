@@ -16,6 +16,10 @@ public class ProductDomainService {
         return Product.create(brandId, name, description, price, stock);
     }
 
+    public void updateProduct(Product product, String name, String description, BigDecimal price, Integer stock) {
+        product.updateInfo(name, description, price, stock);
+    }
+
     public void increaseStock(Product product, Integer quantity) {
         product.increaseStock(quantity);
     }

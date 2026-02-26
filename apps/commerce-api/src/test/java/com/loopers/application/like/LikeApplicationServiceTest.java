@@ -3,6 +3,7 @@ package com.loopers.application.like;
 import com.loopers.domain.like.Like;
 import com.loopers.domain.like.LikeDomainService;
 import com.loopers.domain.like.LikeRepository;
+import com.loopers.domain.brand.BrandRepository;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductRepository;
 import com.loopers.domain.product.exception.ProductNotFoundException;
@@ -26,6 +27,7 @@ class LikeApplicationServiceTest {
     private LikeRepository likeRepository;
     private ProductRepository productRepository;
     private UserRepository userRepository;
+    private BrandRepository brandRepository;
     private LikeApplicationService likeApplicationService;
 
     private final Long userId = 1L;
@@ -36,10 +38,12 @@ class LikeApplicationServiceTest {
         likeRepository = mock(LikeRepository.class);
         productRepository = mock(ProductRepository.class);
         userRepository = mock(UserRepository.class);
+        brandRepository = mock(BrandRepository.class);
         likeApplicationService = new LikeApplicationService(
             likeRepository,
             productRepository,
             userRepository,
+            brandRepository,
             new LikeDomainService()
         );
     }

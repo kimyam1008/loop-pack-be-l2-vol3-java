@@ -6,6 +6,7 @@ import com.loopers.domain.brand.exception.BrandNotFoundException;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductDomainService;
 import com.loopers.domain.product.ProductRepository;
+import com.loopers.domain.product.exception.DuplicateProductNameException;
 import com.loopers.domain.product.exception.ProductNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -32,8 +33,30 @@ public class ProductApplicationService {
         Brand brand = brandRepository.findById(brandId)
             .orElseThrow(() -> new BrandNotFoundException(brandId));
 
-        Product product = productDomainService.createProduct(brandId, name, description, price, stock);
+        String normalizedName = normalizeName(name);
+        if (productRepository.existsByName(normalizedName)) {
+            throw new DuplicateProductNameException(normalizedName);
+        }
+
+        Product product = productDomainService.createProduct(brandId, normalizedName, description, price, stock);
         Product saved = productRepository.save(product);
+        return ProductDto.ProductInfo.of(saved, brand.getName());
+    }
+
+    @Transactional
+    public ProductDto.ProductInfo update(Long productId, String name, String description, BigDecimal price, Integer stock) {
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new ProductNotFoundException(productId));
+
+        String normalizedName = normalizeName(name);
+        if (!product.getName().equals(normalizedName) && productRepository.existsByName(normalizedName)) {
+            throw new DuplicateProductNameException(normalizedName);
+        }
+
+        productDomainService.updateProduct(product, normalizedName, description, price, stock);
+        Product saved = productRepository.save(product);
+        Brand brand = brandRepository.findById(saved.getBrandId())
+            .orElseThrow(() -> new BrandNotFoundException(saved.getBrandId()));
         return ProductDto.ProductInfo.of(saved, brand.getName());
     }
 
@@ -113,5 +136,12 @@ public class ProductApplicationService {
         Brand brand = brandRepository.findByIdIncludingDeleted(saved.getBrandId())
             .orElseThrow(() -> new BrandNotFoundException(saved.getBrandId()));
         return ProductDto.ProductInfo.of(saved, brand.getName());
+    }
+
+    private String normalizeName(String name) {
+        if (name == null) {
+            return null;
+        }
+        return name.trim();
     }
 }
