@@ -6,10 +6,10 @@ import com.loopers.domain.like.LikeRepository;
 import com.loopers.domain.brand.BrandRepository;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductRepository;
-import com.loopers.domain.product.exception.ProductNotFoundException;
 import com.loopers.domain.user.User;
 import com.loopers.domain.user.UserRepository;
-import com.loopers.domain.user.exception.UserNotFoundException;
+import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -78,7 +78,9 @@ class LikeApplicationServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> likeApplicationService.like(userId, productId))
-            .isInstanceOf(UserNotFoundException.class);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.USER_NOT_FOUND));
 
         verify(likeRepository, never()).save(any());
         verify(productRepository, never()).save(any());
@@ -92,7 +94,9 @@ class LikeApplicationServiceTest {
         when(productRepository.findById(productId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> likeApplicationService.like(userId, productId))
-            .isInstanceOf(ProductNotFoundException.class);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
 
         verify(likeRepository, never()).save(any());
     }
@@ -148,10 +152,12 @@ class LikeApplicationServiceTest {
     @DisplayName("unlike: 좋아요가 존재하면 취소에 성공하고 상품의 likeCount가 감소한다")
     @Test
     void unlike_success() {
+        User user = mock(User.class);
         Product product = Product.create(1L, "신발", "설명", BigDecimal.valueOf(50000), 10);
         product.increaseLikeCount(); // likeCount = 1
         Like like = Like.create(userId, productId);
 
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(likeRepository.findByUserIdAndProductId(userId, productId)).thenReturn(Optional.of(like));
         when(likeRepository.save(like)).thenReturn(like);
@@ -165,13 +171,31 @@ class LikeApplicationServiceTest {
         verify(productRepository).save(product);
     }
 
+    @DisplayName("unlike: 존재하지 않는 유저면 예외가 발생한다")
+    @Test
+    void unlike_fail_userNotFound() {
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> likeApplicationService.unlike(userId, productId))
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.USER_NOT_FOUND));
+
+        verify(likeRepository, never()).save(any());
+        verify(productRepository, never()).save(any());
+    }
+
     @DisplayName("unlike: 존재하지 않는 상품이면 예외가 발생한다")
     @Test
     void unlike_fail_productNotFound() {
+        User user = mock(User.class);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(productRepository.findById(productId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> likeApplicationService.unlike(userId, productId))
-            .isInstanceOf(ProductNotFoundException.class);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
 
         verify(likeRepository, never()).save(any());
     }
@@ -179,8 +203,10 @@ class LikeApplicationServiceTest {
     @DisplayName("unlike: 좋아요 기록이 없으면 멱등하게 성공한다")
     @Test
     void unlike_idempotent_whenLikeNotFound() {
+        User user = mock(User.class);
         Product product = Product.create(1L, "신발", "설명", BigDecimal.valueOf(50000), 10);
 
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(likeRepository.findByUserIdAndProductId(userId, productId)).thenReturn(Optional.empty());
 
@@ -193,10 +219,12 @@ class LikeApplicationServiceTest {
     @DisplayName("unlike: likeCount는 0 미만으로 내려가지 않는다")
     @Test
     void unlike_likeCount_neverNegative() {
+        User user = mock(User.class);
         Product product = Product.create(1L, "신발", "설명", BigDecimal.valueOf(50000), 10);
         // likeCount = 0 인 상태에서 unlike
         Like like = Like.create(userId, productId);
 
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(likeRepository.findByUserIdAndProductId(userId, productId)).thenReturn(Optional.of(like));
         when(likeRepository.save(like)).thenReturn(like);

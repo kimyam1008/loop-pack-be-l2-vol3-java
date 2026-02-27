@@ -37,8 +37,7 @@ class OrderDomainServiceTest {
     @Test
     void createOrder_fail_emptyItems() {
         assertThatThrownBy(() -> orderDomainService.createOrder(10L, List.of()))
-            .isInstanceOf(EmptyOrderItemException.class)
-            .hasMessageContaining("주문 항목은 1개 이상이어야 합니다");
+            .isInstanceOf(EmptyOrderItemException.class);
     }
 
     @DisplayName("createOrder: 여러 항목이 있으면 totalAmount가 합산된다")

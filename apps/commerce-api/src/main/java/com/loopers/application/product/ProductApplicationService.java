@@ -2,12 +2,13 @@ package com.loopers.application.product;
 
 import com.loopers.domain.brand.Brand;
 import com.loopers.domain.brand.BrandRepository;
-import com.loopers.domain.brand.exception.BrandNotFoundException;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductDomainService;
 import com.loopers.domain.product.ProductRepository;
-import com.loopers.domain.product.exception.DuplicateProductNameException;
-import com.loopers.domain.product.exception.ProductNotFoundException;
+import com.loopers.domain.product.exception.ProductInsufficientStockException;
+import com.loopers.domain.product.exception.ProductNotDeletedException;
+import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -31,11 +32,11 @@ public class ProductApplicationService {
     @Transactional
     public ProductDto.ProductInfo register(Long brandId, String name, String description, BigDecimal price, Integer stock) {
         Brand brand = brandRepository.findById(brandId)
-            .orElseThrow(() -> new BrandNotFoundException(brandId));
+            .orElseThrow(() -> new CoreException(ErrorType.BRAND_NOT_FOUND));
 
         String normalizedName = normalizeName(name);
         if (productRepository.existsByName(normalizedName)) {
-            throw new DuplicateProductNameException(normalizedName);
+            throw new CoreException(ErrorType.DUPLICATE_PRODUCT_NAME);
         }
 
         Product product = productDomainService.createProduct(brandId, normalizedName, description, price, stock);
@@ -46,17 +47,17 @@ public class ProductApplicationService {
     @Transactional
     public ProductDto.ProductInfo update(Long productId, String name, String description, BigDecimal price, Integer stock) {
         Product product = productRepository.findById(productId)
-            .orElseThrow(() -> new ProductNotFoundException(productId));
+            .orElseThrow(() -> new CoreException(ErrorType.PRODUCT_NOT_FOUND));
 
         String normalizedName = normalizeName(name);
         if (!product.getName().equals(normalizedName) && productRepository.existsByName(normalizedName)) {
-            throw new DuplicateProductNameException(normalizedName);
+            throw new CoreException(ErrorType.DUPLICATE_PRODUCT_NAME);
         }
 
         productDomainService.updateProduct(product, normalizedName, description, price, stock);
         Product saved = productRepository.save(product);
         Brand brand = brandRepository.findById(saved.getBrandId())
-            .orElseThrow(() -> new BrandNotFoundException(saved.getBrandId()));
+            .orElseThrow(() -> new CoreException(ErrorType.BRAND_NOT_FOUND));
         return ProductDto.ProductInfo.of(saved, brand.getName());
     }
 
@@ -80,7 +81,7 @@ public class ProductApplicationService {
     @Transactional(readOnly = true)
     public Page<ProductDto.ProductInfo> getProductsByBrand(Long brandId, ProductSortType sortType, Pageable pageable) {
         Brand brand = brandRepository.findById(brandId)
-            .orElseThrow(() -> new BrandNotFoundException(brandId));
+            .orElseThrow(() -> new CoreException(ErrorType.BRAND_NOT_FOUND));
 
         Pageable sorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sortType.toSort());
         return productRepository.findByBrandId(brandId, sorted)
@@ -90,38 +91,42 @@ public class ProductApplicationService {
     @Transactional(readOnly = true)
     public ProductDto.ProductInfo getProduct(Long productId) {
         Product product = productRepository.findById(productId)
-            .orElseThrow(() -> new ProductNotFoundException(productId));
+            .orElseThrow(() -> new CoreException(ErrorType.PRODUCT_NOT_FOUND));
         Brand brand = brandRepository.findById(product.getBrandId())
-            .orElseThrow(() -> new BrandNotFoundException(product.getBrandId()));
+            .orElseThrow(() -> new CoreException(ErrorType.BRAND_NOT_FOUND));
         return ProductDto.ProductInfo.of(product, brand.getName());
     }
 
     @Transactional
     public ProductDto.ProductInfo increaseStock(Long productId, Integer quantity) {
         Product product = productRepository.findById(productId)
-            .orElseThrow(() -> new ProductNotFoundException(productId));
+            .orElseThrow(() -> new CoreException(ErrorType.PRODUCT_NOT_FOUND));
         productDomainService.increaseStock(product, quantity);
         Product saved = productRepository.save(product);
         Brand brand = brandRepository.findById(saved.getBrandId())
-            .orElseThrow(() -> new BrandNotFoundException(saved.getBrandId()));
+            .orElseThrow(() -> new CoreException(ErrorType.BRAND_NOT_FOUND));
         return ProductDto.ProductInfo.of(saved, brand.getName());
     }
 
     @Transactional
     public ProductDto.ProductInfo decreaseStock(Long productId, Integer quantity) {
         Product product = productRepository.findById(productId)
-            .orElseThrow(() -> new ProductNotFoundException(productId));
-        productDomainService.decreaseStock(product, quantity);
+            .orElseThrow(() -> new CoreException(ErrorType.PRODUCT_NOT_FOUND));
+        try {
+            productDomainService.decreaseStock(product, quantity);
+        } catch (ProductInsufficientStockException e) {
+            throw new CoreException(ErrorType.PRODUCT_INSUFFICIENT_STOCK);
+        }
         Product saved = productRepository.save(product);
         Brand brand = brandRepository.findById(saved.getBrandId())
-            .orElseThrow(() -> new BrandNotFoundException(saved.getBrandId()));
+            .orElseThrow(() -> new CoreException(ErrorType.BRAND_NOT_FOUND));
         return ProductDto.ProductInfo.of(saved, brand.getName());
     }
 
     @Transactional
     public void delete(Long productId) {
         Product product = productRepository.findById(productId)
-            .orElseThrow(() -> new ProductNotFoundException(productId));
+            .orElseThrow(() -> new CoreException(ErrorType.PRODUCT_NOT_FOUND));
         productDomainService.deleteProduct(product);
         productRepository.save(product);
     }
@@ -129,12 +134,16 @@ public class ProductApplicationService {
     @Transactional
     public ProductDto.ProductInfo restore(Long productId) {
         Product product = productRepository.findByIdIncludingDeleted(productId)
-            .orElseThrow(() -> new ProductNotFoundException(productId));
+            .orElseThrow(() -> new CoreException(ErrorType.PRODUCT_NOT_FOUND));
 
-        productDomainService.restoreProduct(product, productId);
+        try {
+            productDomainService.restoreProduct(product, productId);
+        } catch (ProductNotDeletedException e) {
+            throw new CoreException(ErrorType.PRODUCT_NOT_DELETED);
+        }
         Product saved = productRepository.save(product);
         Brand brand = brandRepository.findByIdIncludingDeleted(saved.getBrandId())
-            .orElseThrow(() -> new BrandNotFoundException(saved.getBrandId()));
+            .orElseThrow(() -> new CoreException(ErrorType.BRAND_NOT_FOUND));
         return ProductDto.ProductInfo.of(saved, brand.getName());
     }
 

@@ -1,10 +1,9 @@
 package com.loopers.application.user;
 
 import com.loopers.domain.user.*;
-import com.loopers.domain.user.exception.DuplicateLoginIdException;
-import com.loopers.domain.user.exception.InvalidPasswordException;
-import com.loopers.domain.user.exception.UserNotFoundException;
 import com.loopers.domain.user.PasswordEncryptor;
+import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -84,9 +83,9 @@ class UserApplicationServiceTest {
         assertThatThrownBy(() ->
             userApplicationService.register(duplicateLoginId, password, name, birthDate, email, gender)
         )
-            .isInstanceOf(DuplicateLoginIdException.class)
-            .hasMessageContaining("이미 가입된 ID입니다")
-            .hasMessageContaining(duplicateLoginId);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.DUPLICATE_LOGIN_ID));
 
         verify(userRepository).existsByLoginId(duplicateLoginId);
         verify(userRepository, never()).save(any(User.class));
@@ -194,9 +193,9 @@ class UserApplicationServiceTest {
         assertThatThrownBy(() ->
             userApplicationService.changePassword(userId, oldPassword, newPassword)
         )
-            .isInstanceOf(UserNotFoundException.class)
-            .hasMessageContaining("사용자를 찾을 수 없습니다")
-            .hasMessageContaining(userId.toString());
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.USER_NOT_FOUND));
 
         verify(userRepository).findById(userId);
         verify(userRepository, never()).save(any(User.class));
@@ -218,8 +217,9 @@ class UserApplicationServiceTest {
         assertThatThrownBy(() ->
             userApplicationService.changePassword(userId, wrongOldPassword, newPassword)
         )
-            .isInstanceOf(InvalidPasswordException.class)
-            .hasMessageContaining("기존 비밀번호가 일치하지 않습니다");
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.INVALID_PASSWORD));
 
         verify(userRepository).findById(userId);
         verify(passwordEncryptor).matches(wrongOldPassword, "ENCRYPTED_OldPassword1!");

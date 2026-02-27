@@ -2,8 +2,6 @@ package com.loopers.interfaces.api.like;
 
 import com.loopers.application.like.LikeApplicationService;
 import com.loopers.application.like.LikeDto;
-import com.loopers.domain.product.exception.ProductNotFoundException;
-import com.loopers.domain.user.exception.UserNotFoundException;
 import com.loopers.interfaces.api.ApiResponse;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
@@ -28,8 +26,6 @@ public class LikeV1Controller {
             LikeDto.LikeResult like = likeApplicationService.likeWithStatus(userId, productId);
             String message = like.alreadyLiked() ? "already_liked" : "success";
             return ApiResponse.success(LikeV1Dto.LikeResponse.from(like.like(), message));
-        } catch (UserNotFoundException | ProductNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
         } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
             throw new CoreException(ErrorType.CONFLICT, "동시 요청으로 실패했습니다. 다시 시도해주세요");
         }
@@ -43,8 +39,6 @@ public class LikeV1Controller {
         try {
             likeApplicationService.unlike(userId, productId);
             return ApiResponse.success(null);
-        } catch (ProductNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
         } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
             throw new CoreException(ErrorType.CONFLICT, "동시 요청으로 실패했습니다. 다시 시도해주세요");
         }
@@ -64,8 +58,6 @@ public class LikeV1Controller {
             return ApiResponse.success(
                 LikeV1Dto.LikedProductPageResponse.from(likeApplicationService.getMyLikes(userId, pageable))
             );
-        } catch (UserNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
         } catch (IllegalArgumentException e) {
             throw new CoreException(ErrorType.BAD_REQUEST, e.getMessage());
         }

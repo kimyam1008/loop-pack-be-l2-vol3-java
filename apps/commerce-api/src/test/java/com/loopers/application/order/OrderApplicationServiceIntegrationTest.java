@@ -6,7 +6,8 @@ import com.loopers.domain.brand.Brand;
 import com.loopers.domain.brand.BrandDescription;
 import com.loopers.domain.brand.BrandName;
 import com.loopers.domain.order.OrderStatus;
-import com.loopers.domain.order.exception.OrderNotFoundException;
+import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorType;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductRepository;
 import com.loopers.domain.user.Gender;
@@ -102,8 +103,9 @@ class OrderApplicationServiceIntegrationTest {
                 List.of(new OrderDto.OrderLineCommand(productId, 6))
             )
         )
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("재고가 부족합니다");
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.PRODUCT_INSUFFICIENT_STOCK));
 
         Product product = productRepository.findById(productId).orElseThrow();
         assertThat(product.getStock()).isEqualTo(5);
@@ -128,7 +130,9 @@ class OrderApplicationServiceIntegrationTest {
     @Test
     void getOrder_fail_notFound() {
         assertThatThrownBy(() -> orderApplicationService.getOrder(userId, 9999L))
-            .isInstanceOf(OrderNotFoundException.class);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.ORDER_NOT_FOUND));
     }
 
     @DisplayName("기간 내 주문 목록 조회가 가능하다")

@@ -2,9 +2,6 @@ package com.loopers.interfaces.api.order;
 
 import com.loopers.application.order.OrderApplicationService;
 import com.loopers.application.order.OrderDto;
-import com.loopers.domain.order.exception.OrderNotFoundException;
-import com.loopers.domain.product.exception.ProductNotFoundException;
-import com.loopers.domain.user.exception.UserNotFoundException;
 import com.loopers.interfaces.api.ApiResponse;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
@@ -37,8 +34,6 @@ public class OrderV1Controller {
 
             OrderDto.OrderInfo order = orderApplicationService.placeOrder(userId, commands);
             return ApiResponse.success(OrderV1Dto.OrderResponse.from(order));
-        } catch (UserNotFoundException | ProductNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
         } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
             throw new CoreException(ErrorType.CONFLICT, "동시 요청으로 실패했습니다. 다시 시도해주세요");
         } catch (IllegalArgumentException e) {
@@ -51,12 +46,8 @@ public class OrderV1Controller {
         @RequestHeader("X-Loopers-User-Id") Long userId,
         @PathVariable Long orderId
     ) {
-        try {
-            OrderDto.OrderInfo order = orderApplicationService.getOrder(userId, orderId);
-            return ApiResponse.success(OrderV1Dto.OrderResponse.from(order));
-        } catch (OrderNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
-        }
+        OrderDto.OrderInfo order = orderApplicationService.getOrder(userId, orderId);
+        return ApiResponse.success(OrderV1Dto.OrderResponse.from(order));
     }
 
     @GetMapping("/api/v1/orders")
@@ -83,8 +74,6 @@ public class OrderV1Controller {
         try {
             OrderDto.OrderInfo order = orderApplicationService.cancelOrder(userId, orderId);
             return ApiResponse.success(OrderV1Dto.OrderResponse.from(order));
-        } catch (OrderNotFoundException | ProductNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
         } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
             throw new CoreException(ErrorType.CONFLICT, "동시 요청으로 실패했습니다. 다시 시도해주세요");
         } catch (IllegalArgumentException e) {
@@ -99,11 +88,7 @@ public class OrderV1Controller {
 
     @GetMapping("/api-admin/v1/orders/{orderId}")
     public ApiResponse<OrderV1Dto.OrderResponse> getAdminOrder(@PathVariable Long orderId) {
-        try {
-            OrderDto.OrderInfo order = orderApplicationService.getAdminOrder(orderId);
-            return ApiResponse.success(OrderV1Dto.OrderResponse.from(order));
-        } catch (OrderNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
-        }
+        OrderDto.OrderInfo order = orderApplicationService.getAdminOrder(orderId);
+        return ApiResponse.success(OrderV1Dto.OrderResponse.from(order));
     }
 }

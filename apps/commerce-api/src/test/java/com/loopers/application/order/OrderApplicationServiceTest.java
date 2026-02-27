@@ -4,13 +4,12 @@ import com.loopers.domain.order.Order;
 import com.loopers.domain.order.OrderDomainService;
 import com.loopers.domain.order.OrderItem;
 import com.loopers.domain.order.OrderRepository;
-import com.loopers.domain.order.exception.OrderNotFoundException;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductRepository;
-import com.loopers.domain.product.exception.ProductNotFoundException;
 import com.loopers.domain.user.User;
 import com.loopers.domain.user.UserRepository;
-import com.loopers.domain.user.exception.UserNotFoundException;
+import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -87,7 +86,9 @@ class OrderApplicationServiceTest {
                 userId,
                 List.of(new OrderDto.OrderLineCommand(productId, 1))
             )
-        ).isInstanceOf(UserNotFoundException.class);
+        ).isInstanceOf(CoreException.class)
+         .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+             .isEqualTo(ErrorType.USER_NOT_FOUND));
 
         verify(orderRepository, never()).save(any());
     }
@@ -106,8 +107,9 @@ class OrderApplicationServiceTest {
                 userId,
                 List.of(new OrderDto.OrderLineCommand(productId, 1))
             )
-        ).isInstanceOf(IllegalArgumentException.class)
-         .hasMessageContaining("재고가 부족합니다");
+        ).isInstanceOf(CoreException.class)
+         .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+             .isEqualTo(ErrorType.PRODUCT_INSUFFICIENT_STOCK));
 
         verify(orderRepository, never()).save(any());
         verify(productRepository, never()).save(any());
@@ -125,7 +127,9 @@ class OrderApplicationServiceTest {
                 userId,
                 List.of(new OrderDto.OrderLineCommand(productId, 1))
             )
-        ).isInstanceOf(ProductNotFoundException.class);
+        ).isInstanceOf(CoreException.class)
+         .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+             .isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
 
         verify(orderRepository, never()).save(any());
     }
@@ -149,7 +153,9 @@ class OrderApplicationServiceTest {
         when(orderRepository.findByIdAndUserId(100L, userId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderApplicationService.getOrder(userId, 100L))
-            .isInstanceOf(OrderNotFoundException.class);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.ORDER_NOT_FOUND));
     }
 
     @DisplayName("getOrders: 기간 내 주문 목록을 조회한다")
@@ -223,7 +229,9 @@ class OrderApplicationServiceTest {
         when(orderRepository.findByIdAndUserId(100L, userId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderApplicationService.cancelOrder(userId, 100L))
-            .isInstanceOf(OrderNotFoundException.class);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.ORDER_NOT_FOUND));
     }
 
     private Order createOrder(Long userId, Long productId, Integer quantity, BigDecimal price) {

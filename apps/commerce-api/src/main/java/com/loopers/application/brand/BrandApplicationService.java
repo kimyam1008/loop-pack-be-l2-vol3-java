@@ -1,9 +1,10 @@
 package com.loopers.application.brand;
 
 import com.loopers.domain.brand.*;
-import com.loopers.domain.brand.exception.BrandNotFoundException;
-import com.loopers.domain.brand.exception.DuplicateBrandNameException;
+import com.loopers.domain.brand.exception.BrandNotDeletedException;
 import com.loopers.domain.product.Product;
+import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorType;
 import com.loopers.domain.product.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,7 +26,7 @@ public class BrandApplicationService {
         BrandDescription brandDescription = new BrandDescription(description);
 
         if (brandRepository.existsByName(brandName.value())) {
-            throw new DuplicateBrandNameException(brandName.value());
+            throw new CoreException(ErrorType.DUPLICATE_BRAND_NAME);
         }
 
         Brand brand = brandDomainService.createBrand(brandName, brandDescription);
@@ -42,7 +43,7 @@ public class BrandApplicationService {
     @Transactional(readOnly = true)
     public BrandDto.BrandInfo getBrand(Long brandId) {
         Brand brand = brandRepository.findById(brandId)
-            .orElseThrow(() -> new BrandNotFoundException(brandId));
+            .orElseThrow(() -> new CoreException(ErrorType.BRAND_NOT_FOUND));
 
         return BrandDto.BrandInfo.from(brand);
     }
@@ -50,13 +51,13 @@ public class BrandApplicationService {
     @Transactional
     public BrandDto.BrandInfo update(Long brandId, String name, String description) {
         Brand brand = brandRepository.findById(brandId)
-            .orElseThrow(() -> new BrandNotFoundException(brandId));
+            .orElseThrow(() -> new CoreException(ErrorType.BRAND_NOT_FOUND));
 
         BrandName brandName = new BrandName(name);
         BrandDescription brandDescription = new BrandDescription(description);
 
         if (!brand.getName().equals(brandName.value()) && brandRepository.existsByName(brandName.value())) {
-            throw new DuplicateBrandNameException(brandName.value());
+            throw new CoreException(ErrorType.DUPLICATE_BRAND_NAME);
         }
 
         brandDomainService.updateBrand(brand, brandName, brandDescription);
@@ -67,7 +68,7 @@ public class BrandApplicationService {
     @Transactional
     public void delete(Long brandId) {
         Brand brand = brandRepository.findById(brandId)
-            .orElseThrow(() -> new BrandNotFoundException(brandId));
+            .orElseThrow(() -> new CoreException(ErrorType.BRAND_NOT_FOUND));
 
         brandDomainService.deleteBrand(brand);
         brandRepository.save(brand);
@@ -81,9 +82,13 @@ public class BrandApplicationService {
     @Transactional
     public BrandDto.BrandInfo restore(Long brandId) {
         Brand brand = brandRepository.findByIdIncludingDeleted(brandId)
-            .orElseThrow(() -> new BrandNotFoundException(brandId));
+            .orElseThrow(() -> new CoreException(ErrorType.BRAND_NOT_FOUND));
 
-        brandDomainService.restoreBrand(brand, brandId);
+        try {
+            brandDomainService.restoreBrand(brand, brandId);
+        } catch (BrandNotDeletedException e) {
+            throw new CoreException(ErrorType.BRAND_NOT_DELETED);
+        }
         Brand savedBrand = brandRepository.save(brand);
 
         for (Product product : productRepository.findAllByBrandIdIncludingDeleted(brandId)) {

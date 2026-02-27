@@ -1,6 +1,7 @@
 package com.loopers.domain.product;
 
 import com.loopers.domain.BaseEntity;
+import com.loopers.domain.product.exception.ProductInsufficientStockException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -67,7 +68,7 @@ public class Product extends BaseEntity {
     public void decreaseStock(Integer quantity) {
         validateQuantity(quantity);
         if (!hasEnoughStock(quantity)) {
-            throw new IllegalArgumentException("재고가 부족합니다");
+            throw new ProductInsufficientStockException();
         }
         this.stock -= quantity;
     }

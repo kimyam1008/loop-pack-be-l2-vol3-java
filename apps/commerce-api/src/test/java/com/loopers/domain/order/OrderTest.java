@@ -62,8 +62,7 @@ class OrderTest {
         order.cancel();
 
         assertThatThrownBy(() -> order.changeStatus(OrderStatus.CONFIRMED))
-            .isInstanceOf(InvalidOrderStatusTransitionException.class)
-            .hasMessageContaining("주문 상태를 변경할 수 없습니다");
+            .isInstanceOf(InvalidOrderStatusTransitionException.class);
     }
 
     @DisplayName("cancel: 이미 취소된 주문을 다시 취소하면 false를 반환한다")

@@ -1,5 +1,6 @@
 package com.loopers.domain.product;
 
+import com.loopers.domain.product.exception.ProductInsufficientStockException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -66,8 +67,7 @@ class ProductTest {
         Product product = Product.create(1L, "상품", "설명", BigDecimal.valueOf(1000), 1);
 
         assertThatThrownBy(() -> product.decreaseStock(2))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("재고가 부족합니다");
+            .isInstanceOf(ProductInsufficientStockException.class);
     }
 
     @DisplayName("Product: 좋아요 수는 0 미만으로 내려가지 않는다")

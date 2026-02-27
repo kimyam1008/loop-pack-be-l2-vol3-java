@@ -1,7 +1,7 @@
 package com.loopers.domain.user;
 
-import com.loopers.domain.user.exception.InvalidPasswordException;
 import com.loopers.domain.user.PasswordEncryptor;
+import com.loopers.domain.user.exception.InvalidPasswordException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -126,8 +126,7 @@ class UserDomainServiceTest {
         assertThatThrownBy(() ->
             userDomainService.updatePassword(user, wrongOldPassword, newPassword, passwordEncryptor)
         )
-            .isInstanceOf(InvalidPasswordException.class)
-            .hasMessageContaining("기존 비밀번호가 일치하지 않습니다");
+            .isInstanceOf(InvalidPasswordException.class);
     }
 
     @DisplayName("updatePassword: 새 비밀번호에 생년월일이 포함되면 예외가 발생한다")

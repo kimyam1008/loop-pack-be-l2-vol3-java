@@ -4,12 +4,11 @@ import com.loopers.domain.brand.Brand;
 import com.loopers.domain.brand.BrandDescription;
 import com.loopers.domain.brand.BrandName;
 import com.loopers.domain.brand.BrandRepository;
-import com.loopers.domain.brand.exception.BrandNotFoundException;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductDomainService;
 import com.loopers.domain.product.ProductRepository;
-import com.loopers.domain.product.exception.ProductNotDeletedException;
-import com.loopers.domain.product.exception.ProductNotFoundException;
+import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -77,7 +76,9 @@ class ProductApplicationServiceTest {
 
         assertThatThrownBy(() ->
             productApplicationService.register(99L, "신발", "설명", BigDecimal.valueOf(50000), 100)
-        ).isInstanceOf(BrandNotFoundException.class);
+        ).isInstanceOf(CoreException.class)
+         .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+             .isEqualTo(ErrorType.BRAND_NOT_FOUND));
 
         verify(productRepository, never()).save(any());
     }
@@ -162,7 +163,9 @@ class ProductApplicationServiceTest {
 
         assertThatThrownBy(() ->
             productApplicationService.getProductsByBrand(99L, ProductSortType.LATEST, PageRequest.of(0, 20))
-        ).isInstanceOf(BrandNotFoundException.class);
+        ).isInstanceOf(CoreException.class)
+         .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+             .isEqualTo(ErrorType.BRAND_NOT_FOUND));
     }
 
     // ── getProduct ────────────────────────────────────────────────────────────
@@ -188,7 +191,9 @@ class ProductApplicationServiceTest {
         when(productRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> productApplicationService.getProduct(99L))
-            .isInstanceOf(ProductNotFoundException.class);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
     }
 
     // ── increaseStock ─────────────────────────────────────────────────────────
@@ -215,7 +220,9 @@ class ProductApplicationServiceTest {
         when(productRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> productApplicationService.increaseStock(99L, 5))
-            .isInstanceOf(ProductNotFoundException.class);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
     }
 
     @DisplayName("increaseStock: 수량이 0 이하이면 도메인에서 예외가 발생한다")
@@ -256,8 +263,9 @@ class ProductApplicationServiceTest {
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
 
         assertThatThrownBy(() -> productApplicationService.decreaseStock(productId, 5))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("재고가 부족합니다");
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.PRODUCT_INSUFFICIENT_STOCK));
     }
 
     @DisplayName("decreaseStock: 존재하지 않는 상품이면 예외가 발생한다")
@@ -266,7 +274,9 @@ class ProductApplicationServiceTest {
         when(productRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> productApplicationService.decreaseStock(99L, 3))
-            .isInstanceOf(ProductNotFoundException.class);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
     }
 
     // ── delete ────────────────────────────────────────────────────────────────
@@ -290,7 +300,9 @@ class ProductApplicationServiceTest {
         when(productRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> productApplicationService.delete(99L))
-            .isInstanceOf(ProductNotFoundException.class);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
     }
 
     // ── restore ───────────────────────────────────────────────────────────────
@@ -318,7 +330,9 @@ class ProductApplicationServiceTest {
         when(productRepository.findByIdIncludingDeleted(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> productApplicationService.restore(99L))
-            .isInstanceOf(ProductNotFoundException.class);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
     }
 
     @DisplayName("restore: 삭제되지 않은 상품 복구 요청 시 예외가 발생한다")
@@ -329,6 +343,8 @@ class ProductApplicationServiceTest {
         when(productRepository.findByIdIncludingDeleted(productId)).thenReturn(Optional.of(product));
 
         assertThatThrownBy(() -> productApplicationService.restore(productId))
-            .isInstanceOf(ProductNotDeletedException.class);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.PRODUCT_NOT_DELETED));
     }
 }

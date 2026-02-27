@@ -1,10 +1,9 @@
 package com.loopers.application.brand;
 
 import com.loopers.domain.brand.*;
-import com.loopers.domain.brand.exception.BrandNotDeletedException;
-import com.loopers.domain.brand.exception.BrandNotFoundException;
-import com.loopers.domain.brand.exception.DuplicateBrandNameException;
 import com.loopers.domain.product.Product;
+import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorType;
 import com.loopers.domain.product.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -58,7 +57,9 @@ class BrandApplicationServiceTest {
         when(brandRepository.existsByName("LOOPERS")).thenReturn(true);
 
         assertThatThrownBy(() -> brandApplicationService.register("LOOPERS", "브랜드 설명"))
-            .isInstanceOf(DuplicateBrandNameException.class);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.DUPLICATE_BRAND_NAME));
 
         verify(brandRepository, never()).save(any(Brand.class));
     }
@@ -94,7 +95,9 @@ class BrandApplicationServiceTest {
         when(brandRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> brandApplicationService.getBrand(99L))
-            .isInstanceOf(BrandNotFoundException.class);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.BRAND_NOT_FOUND));
     }
 
     @DisplayName("update: 브랜드 정보를 수정한다")
@@ -135,7 +138,9 @@ class BrandApplicationServiceTest {
         when(brandRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> brandApplicationService.update(1L, "NEW", "DESC"))
-            .isInstanceOf(BrandNotFoundException.class);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.BRAND_NOT_FOUND));
     }
 
     @DisplayName("delete: 브랜드 soft delete 시 브랜드 소속 활성 상품도 함께 soft delete한다")
@@ -192,7 +197,9 @@ class BrandApplicationServiceTest {
         when(brandRepository.findByIdIncludingDeleted(brandId)).thenReturn(Optional.of(activeBrand));
 
         assertThatThrownBy(() -> brandApplicationService.restore(brandId))
-            .isInstanceOf(BrandNotDeletedException.class);
+            .isInstanceOf(CoreException.class)
+            .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                .isEqualTo(ErrorType.BRAND_NOT_DELETED));
     }
 
     private Product createProduct(Long brandId, String name) {

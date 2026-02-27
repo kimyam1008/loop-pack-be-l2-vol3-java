@@ -7,9 +7,9 @@ import com.loopers.domain.like.LikeDomainService;
 import com.loopers.domain.like.LikeRepository;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductRepository;
-import com.loopers.domain.product.exception.ProductNotFoundException;
 import com.loopers.domain.user.UserRepository;
-import com.loopers.domain.user.exception.UserNotFoundException;
+import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorType;
 import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -63,10 +63,10 @@ public class LikeApplicationService {
     )
     public LikeDto.LikeResult likeWithStatus(Long userId, Long productId) {
         userRepository.findById(userId)
-            .orElseThrow(() -> new UserNotFoundException(userId));
+            .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
 
         Product product = productRepository.findById(productId)
-            .orElseThrow(() -> new ProductNotFoundException(productId));
+            .orElseThrow(() -> new CoreException(ErrorType.PRODUCT_NOT_FOUND));
 
         Like existing = likeRepository.findByUserIdAndProductIdIncludingDeleted(userId, productId)
             .orElse(null);
@@ -93,8 +93,11 @@ public class LikeApplicationService {
         backoff = @Backoff(delay = 30)
     )
     public void unlike(Long userId, Long productId) {
+        userRepository.findById(userId)
+            .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
+
         Product product = productRepository.findById(productId)
-            .orElseThrow(() -> new ProductNotFoundException(productId));
+            .orElseThrow(() -> new CoreException(ErrorType.PRODUCT_NOT_FOUND));
 
         Like like = likeRepository.findByUserIdAndProductId(userId, productId)
             .orElse(null);
@@ -111,7 +114,7 @@ public class LikeApplicationService {
     @Transactional(readOnly = true)
     public Page<LikeDto.LikedProductInfo> getMyLikes(Long userId, Pageable pageable) {
         userRepository.findById(userId)
-            .orElseThrow(() -> new UserNotFoundException(userId));
+            .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
 
         Page<Like> likes = likeRepository.findByUserId(userId, pageable);
         if (likes.isEmpty()) {

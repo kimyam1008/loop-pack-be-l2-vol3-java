@@ -2,9 +2,6 @@ package com.loopers.interfaces.api.user;
 
 import com.loopers.application.user.UserApplicationService;
 import com.loopers.application.user.UserDto;
-import com.loopers.domain.user.exception.DuplicateLoginIdException;
-import com.loopers.domain.user.exception.InvalidPasswordException;
-import com.loopers.domain.user.exception.UserNotFoundException;
 import com.loopers.interfaces.api.ApiResponse;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
@@ -53,8 +50,6 @@ public class UserV1Controller {
             // Application DTO → API DTO 변환
             UserV1Dto.CreateResponse response = UserV1Dto.CreateResponse.from(userInfo);
             return ApiResponse.success(response);
-        } catch (DuplicateLoginIdException e) {
-            throw new CoreException(ErrorType.BAD_REQUEST, e.getMessage());
         } catch (IllegalArgumentException e) {
             throw new CoreException(ErrorType.BAD_REQUEST, e.getMessage());
         }
@@ -81,9 +76,7 @@ public class UserV1Controller {
         try {
             userApplicationService.changePassword(id, request.oldPassword(), request.newPassword());
             return ApiResponse.success(null);
-        } catch (UserNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
-        } catch (InvalidPasswordException | IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             throw new CoreException(ErrorType.BAD_REQUEST, e.getMessage());
         }
     }

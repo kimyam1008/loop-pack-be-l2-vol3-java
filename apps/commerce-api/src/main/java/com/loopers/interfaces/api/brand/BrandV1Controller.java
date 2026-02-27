@@ -2,9 +2,6 @@ package com.loopers.interfaces.api.brand;
 
 import com.loopers.application.brand.BrandApplicationService;
 import com.loopers.application.brand.BrandDto;
-import com.loopers.domain.brand.exception.BrandNotDeletedException;
-import com.loopers.domain.brand.exception.BrandNotFoundException;
-import com.loopers.domain.brand.exception.DuplicateBrandNameException;
 import com.loopers.interfaces.api.ApiResponse;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
@@ -21,12 +18,8 @@ public class BrandV1Controller {
 
     @GetMapping("/api/v1/brands/{brandId}")
     public ApiResponse<BrandV1Dto.BrandResponse> getBrand(@PathVariable Long brandId) {
-        try {
-            BrandDto.BrandInfo brand = brandApplicationService.getBrand(brandId);
-            return ApiResponse.success(BrandV1Dto.BrandResponse.from(brand));
-        } catch (BrandNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
-        }
+        BrandDto.BrandInfo brand = brandApplicationService.getBrand(brandId);
+        return ApiResponse.success(BrandV1Dto.BrandResponse.from(brand));
     }
 
     @GetMapping("/api-admin/v1/brands")
@@ -36,12 +29,8 @@ public class BrandV1Controller {
 
     @GetMapping("/api-admin/v1/brands/{brandId}")
     public ApiResponse<BrandV1Dto.BrandResponse> getAdminBrand(@PathVariable Long brandId) {
-        try {
-            BrandDto.BrandInfo brand = brandApplicationService.getBrand(brandId);
-            return ApiResponse.success(BrandV1Dto.BrandResponse.from(brand));
-        } catch (BrandNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
-        }
+        BrandDto.BrandInfo brand = brandApplicationService.getBrand(brandId);
+        return ApiResponse.success(BrandV1Dto.BrandResponse.from(brand));
     }
 
     @PostMapping("/api-admin/v1/brands")
@@ -49,8 +38,6 @@ public class BrandV1Controller {
         try {
             BrandDto.BrandInfo brand = brandApplicationService.register(request.name(), request.description());
             return ApiResponse.success(BrandV1Dto.BrandResponse.from(brand));
-        } catch (DuplicateBrandNameException e) {
-            throw new CoreException(ErrorType.CONFLICT, e.getMessage());
         } catch (IllegalArgumentException e) {
             throw new CoreException(ErrorType.BAD_REQUEST, e.getMessage());
         }
@@ -64,10 +51,6 @@ public class BrandV1Controller {
         try {
             BrandDto.BrandInfo brand = brandApplicationService.update(brandId, request.name(), request.description());
             return ApiResponse.success(BrandV1Dto.BrandResponse.from(brand));
-        } catch (BrandNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
-        } catch (DuplicateBrandNameException e) {
-            throw new CoreException(ErrorType.CONFLICT, e.getMessage());
         } catch (IllegalArgumentException e) {
             throw new CoreException(ErrorType.BAD_REQUEST, e.getMessage());
         }
@@ -75,23 +58,13 @@ public class BrandV1Controller {
 
     @DeleteMapping("/api-admin/v1/brands/{brandId}")
     public ApiResponse<Void> deleteBrand(@PathVariable Long brandId) {
-        try {
-            brandApplicationService.delete(brandId);
-            return ApiResponse.success(null);
-        } catch (BrandNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
-        }
+        brandApplicationService.delete(brandId);
+        return ApiResponse.success(null);
     }
 
     @PostMapping("/api-admin/v1/brands/{brandId}/restore")
     public ApiResponse<BrandV1Dto.BrandResponse> restoreBrand(@PathVariable Long brandId) {
-        try {
-            BrandDto.BrandInfo brand = brandApplicationService.restore(brandId);
-            return ApiResponse.success(BrandV1Dto.BrandResponse.from(brand));
-        } catch (BrandNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
-        } catch (BrandNotDeletedException e) {
-            throw new CoreException(ErrorType.BAD_REQUEST, e.getMessage());
-        }
+        BrandDto.BrandInfo brand = brandApplicationService.restore(brandId);
+        return ApiResponse.success(BrandV1Dto.BrandResponse.from(brand));
     }
 }

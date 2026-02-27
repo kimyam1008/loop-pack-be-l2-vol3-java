@@ -3,10 +3,6 @@ package com.loopers.interfaces.api.product;
 import com.loopers.application.product.ProductApplicationService;
 import com.loopers.application.product.ProductDto;
 import com.loopers.application.product.ProductSortType;
-import com.loopers.domain.brand.exception.BrandNotFoundException;
-import com.loopers.domain.product.exception.DuplicateProductNameException;
-import com.loopers.domain.product.exception.ProductNotDeletedException;
-import com.loopers.domain.product.exception.ProductNotFoundException;
 import com.loopers.interfaces.api.ApiResponse;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
@@ -39,8 +35,6 @@ public class ProductV1Controller {
             return ApiResponse.success(ProductV1Dto.ProductPageResponse.from(
                 productApplicationService.getProducts(sortType, pageable)
             ));
-        } catch (BrandNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
         } catch (IllegalArgumentException e) {
             throw new CoreException(ErrorType.BAD_REQUEST, e.getMessage());
         }
@@ -48,12 +42,8 @@ public class ProductV1Controller {
 
     @GetMapping("/api/v1/products/{productId}")
     public ApiResponse<ProductV1Dto.ProductResponse> getProduct(@PathVariable Long productId) {
-        try {
-            ProductDto.ProductInfo product = productApplicationService.getProduct(productId);
-            return ApiResponse.success(ProductV1Dto.ProductResponse.from(product));
-        } catch (ProductNotFoundException | BrandNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
-        }
+        ProductDto.ProductInfo product = productApplicationService.getProduct(productId);
+        return ApiResponse.success(ProductV1Dto.ProductResponse.from(product));
     }
 
     @GetMapping("/api-admin/v1/products")
@@ -83,10 +73,6 @@ public class ProductV1Controller {
                 request.stock()
             );
             return ApiResponse.success(ProductV1Dto.ProductResponse.from(product));
-        } catch (BrandNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
-        } catch (DuplicateProductNameException e) {
-            throw new CoreException(ErrorType.CONFLICT, e.getMessage());
         } catch (IllegalArgumentException e) {
             throw new CoreException(ErrorType.BAD_REQUEST, e.getMessage());
         }
@@ -106,10 +92,6 @@ public class ProductV1Controller {
                 request.stock()
             );
             return ApiResponse.success(ProductV1Dto.ProductResponse.from(product));
-        } catch (ProductNotFoundException | BrandNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
-        } catch (DuplicateProductNameException e) {
-            throw new CoreException(ErrorType.CONFLICT, e.getMessage());
         } catch (IllegalArgumentException e) {
             throw new CoreException(ErrorType.BAD_REQUEST, e.getMessage());
         }
@@ -117,23 +99,13 @@ public class ProductV1Controller {
 
     @DeleteMapping("/api-admin/v1/products/{productId}")
     public ApiResponse<Void> deleteProduct(@PathVariable Long productId) {
-        try {
-            productApplicationService.delete(productId);
-            return ApiResponse.success(null);
-        } catch (ProductNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
-        }
+        productApplicationService.delete(productId);
+        return ApiResponse.success(null);
     }
 
     @PostMapping("/api-admin/v1/products/{productId}/restore")
     public ApiResponse<ProductV1Dto.ProductResponse> restoreProduct(@PathVariable Long productId) {
-        try {
-            ProductDto.ProductInfo product = productApplicationService.restore(productId);
-            return ApiResponse.success(ProductV1Dto.ProductResponse.from(product));
-        } catch (ProductNotFoundException | BrandNotFoundException e) {
-            throw new CoreException(ErrorType.NOT_FOUND, e.getMessage());
-        } catch (ProductNotDeletedException e) {
-            throw new CoreException(ErrorType.BAD_REQUEST, e.getMessage());
-        }
+        ProductDto.ProductInfo product = productApplicationService.restore(productId);
+        return ApiResponse.success(ProductV1Dto.ProductResponse.from(product));
     }
 }

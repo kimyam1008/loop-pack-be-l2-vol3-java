@@ -7,9 +7,9 @@ import com.loopers.domain.brand.BrandDescription;
 import com.loopers.domain.brand.BrandName;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductRepository;
-import com.loopers.domain.product.exception.ProductNotFoundException;
 import com.loopers.domain.user.Gender;
-import com.loopers.domain.user.exception.UserNotFoundException;
+import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorType;
 import com.loopers.infrastructure.brand.BrandJpaRepository;
 import com.loopers.infrastructure.product.ProductJpaRepository;
 import com.loopers.utils.DatabaseCleanUp;
@@ -106,14 +106,18 @@ class LikeApplicationServiceIntegrationTest {
         @Test
         void like_fail_userNotFound() {
             assertThatThrownBy(() -> likeApplicationService.like(999L, productId))
-                .isInstanceOf(UserNotFoundException.class);
+                .isInstanceOf(CoreException.class)
+                .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                    .isEqualTo(ErrorType.USER_NOT_FOUND));
         }
 
         @DisplayName("존재하지 않는 상품 ID로 좋아요를 누르면 예외가 발생한다")
         @Test
         void like_fail_productNotFound() {
             assertThatThrownBy(() -> likeApplicationService.like(userId, 999L))
-                .isInstanceOf(ProductNotFoundException.class);
+                .isInstanceOf(CoreException.class)
+                .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                    .isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
         }
     }
 
@@ -145,7 +149,9 @@ class LikeApplicationServiceIntegrationTest {
         @Test
         void unlike_fail_productNotFound() {
             assertThatThrownBy(() -> likeApplicationService.unlike(userId, 999L))
-                .isInstanceOf(ProductNotFoundException.class);
+                .isInstanceOf(CoreException.class)
+                .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                    .isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
         }
     }
 

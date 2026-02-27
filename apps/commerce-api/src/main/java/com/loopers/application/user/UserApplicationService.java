@@ -1,9 +1,10 @@
 package com.loopers.application.user;
 
 import com.loopers.domain.user.*;
-import com.loopers.domain.user.exception.DuplicateLoginIdException;
-import com.loopers.domain.user.exception.UserNotFoundException;
 import com.loopers.domain.user.PasswordEncryptor;
+import com.loopers.domain.user.exception.InvalidPasswordException;
+import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,7 +53,7 @@ public class UserApplicationService {
     ) {
         // 1. 중복 ID 체크
         if (userRepository.existsByLoginId(loginId)) {
-            throw new DuplicateLoginIdException(loginId);
+            throw new CoreException(ErrorType.DUPLICATE_LOGIN_ID);
         }
 
         // 2. 도메인 서비스를 통한 User 생성
@@ -100,18 +101,17 @@ public class UserApplicationService {
     public void changePassword(Long userId, String oldPassword, String newPassword) {
         // 1. 사용자 조회
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new UserNotFoundException(userId));
+            .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
 
         // 2. 도메인 서비스를 통한 비밀번호 변경
         RawPassword rawOldPassword = new RawPassword(oldPassword);
         RawPassword rawNewPassword = new RawPassword(newPassword);
 
-        userDomainService.updatePassword(
-            user,
-            rawOldPassword,
-            rawNewPassword,
-            passwordEncryptor
-        );
+        try {
+            userDomainService.updatePassword(user, rawOldPassword, rawNewPassword, passwordEncryptor);
+        } catch (InvalidPasswordException e) {
+            throw new CoreException(ErrorType.INVALID_PASSWORD);
+        }
 
         // 3. 저장 (변경 감지 또는 명시적 save)
         userRepository.save(user);

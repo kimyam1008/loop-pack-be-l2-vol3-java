@@ -4,12 +4,14 @@ import com.loopers.domain.order.Order;
 import com.loopers.domain.order.OrderDomainService;
 import com.loopers.domain.order.OrderItem;
 import com.loopers.domain.order.OrderRepository;
-import com.loopers.domain.order.exception.OrderNotFoundException;
+import com.loopers.domain.order.exception.EmptyOrderItemException;
+import com.loopers.domain.order.exception.InvalidOrderStatusTransitionException;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductRepository;
-import com.loopers.domain.product.exception.ProductNotFoundException;
+import com.loopers.domain.product.exception.ProductInsufficientStockException;
 import com.loopers.domain.user.UserRepository;
-import com.loopers.domain.user.exception.UserNotFoundException;
+import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorType;
 import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -47,7 +49,7 @@ public class OrderApplicationService {
     )
     public OrderDto.OrderInfo placeOrder(Long userId, List<OrderDto.OrderLineCommand> items) {
         userRepository.findById(userId)
-            .orElseThrow(() -> new UserNotFoundException(userId));
+            .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
 
         List<OrderItem> orderItems = new ArrayList<>();
         Map<Long, Product> touchedProducts = new LinkedHashMap<>();
@@ -59,9 +61,13 @@ public class OrderApplicationService {
                 }
 
                 Product product = productRepository.findById(item.productId())
-                    .orElseThrow(() -> new ProductNotFoundException(item.productId()));
+                    .orElseThrow(() -> new CoreException(ErrorType.PRODUCT_NOT_FOUND));
 
-                product.decreaseStock(item.quantity());
+                try {
+                    product.decreaseStock(item.quantity());
+                } catch (ProductInsufficientStockException e) {
+                    throw new CoreException(ErrorType.PRODUCT_INSUFFICIENT_STOCK);
+                }
                 orderItems.add(OrderItem.createSnapshot(
                     product.getId(), product.getName(), product.getPrice(), item.quantity()
                 ));
@@ -69,7 +75,12 @@ public class OrderApplicationService {
             }
         }
 
-        Order order = orderDomainService.createOrder(userId, orderItems);
+        Order order;
+        try {
+            order = orderDomainService.createOrder(userId, orderItems);
+        } catch (EmptyOrderItemException e) {
+            throw new CoreException(ErrorType.ORDER_EMPTY_ITEMS);
+        }
         Order savedOrder = orderRepository.save(order);
 
         for (Product touchedProduct : touchedProducts.values()) {
@@ -82,7 +93,7 @@ public class OrderApplicationService {
     @Transactional(readOnly = true)
     public OrderDto.OrderInfo getOrder(Long userId, Long orderId) {
         Order order = orderRepository.findByIdAndUserId(orderId, userId)
-            .orElseThrow(() -> new OrderNotFoundException(orderId));
+            .orElseThrow(() -> new CoreException(ErrorType.ORDER_NOT_FOUND));
         return OrderDto.OrderInfo.from(order);
     }
 
@@ -97,12 +108,12 @@ public class OrderApplicationService {
     )
     public OrderDto.OrderInfo cancelOrder(Long userId, Long orderId) {
         Order order = orderRepository.findByIdAndUserId(orderId, userId)
-            .orElseThrow(() -> new OrderNotFoundException(orderId));
+            .orElseThrow(() -> new CoreException(ErrorType.ORDER_NOT_FOUND));
 
         Map<Long, Product> touchedProducts = new LinkedHashMap<>();
         for (com.loopers.domain.order.OrderItem orderItem : order.getOrderItems()) {
             Product product = productRepository.findById(orderItem.getProductId())
-                .orElseThrow(() -> new ProductNotFoundException(orderItem.getProductId()));
+                .orElseThrow(() -> new CoreException(ErrorType.PRODUCT_NOT_FOUND));
             touchedProducts.put(product.getId(), product);
         }
 
@@ -145,7 +156,7 @@ public class OrderApplicationService {
     @Transactional(readOnly = true)
     public OrderDto.OrderInfo getAdminOrder(Long orderId) {
         Order order = orderRepository.findById(orderId)
-            .orElseThrow(() -> new OrderNotFoundException(orderId));
+            .orElseThrow(() -> new CoreException(ErrorType.ORDER_NOT_FOUND));
         return OrderDto.OrderInfo.from(order);
     }
 }
