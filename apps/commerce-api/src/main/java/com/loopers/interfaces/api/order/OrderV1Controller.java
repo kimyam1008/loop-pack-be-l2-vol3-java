@@ -32,7 +32,7 @@ public class OrderV1Controller {
                 .map(OrderV1Dto.OrderItemRequest::toCommand)
                 .toList();
 
-            OrderDto.OrderInfo order = orderApplicationService.placeOrder(userId, commands);
+            OrderDto.OrderInfo order = orderApplicationService.placeOrder(userId, commands, request.couponId());
             return ApiResponse.success(OrderV1Dto.OrderResponse.from(order));
         } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
             throw new CoreException(ErrorType.CONFLICT, "동시 요청으로 실패했습니다. 다시 시도해주세요");

@@ -1,5 +1,7 @@
 package com.loopers.application.order;
 
+import com.loopers.domain.coupon.CouponIssueRepository;
+import com.loopers.domain.coupon.CouponRepository;
 import com.loopers.domain.order.Order;
 import com.loopers.domain.order.OrderDomainService;
 import com.loopers.domain.order.OrderItem;
@@ -32,6 +34,8 @@ class OrderApplicationServiceTest {
     private OrderRepository orderRepository;
     private ProductRepository productRepository;
     private UserRepository userRepository;
+    private CouponRepository couponRepository;
+    private CouponIssueRepository couponIssueRepository;
     private OrderApplicationService orderApplicationService;
 
     private final Long userId = 1L;
@@ -42,10 +46,14 @@ class OrderApplicationServiceTest {
         orderRepository = mock(OrderRepository.class);
         productRepository = mock(ProductRepository.class);
         userRepository = mock(UserRepository.class);
+        couponRepository = mock(CouponRepository.class);
+        couponIssueRepository = mock(CouponIssueRepository.class);
         orderApplicationService = new OrderApplicationService(
             orderRepository,
             productRepository,
             userRepository,
+            couponRepository,
+            couponIssueRepository,
             new OrderDomainService()
         );
     }
@@ -64,7 +72,8 @@ class OrderApplicationServiceTest {
 
         OrderDto.OrderInfo result = orderApplicationService.placeOrder(
             userId,
-            List.of(new OrderDto.OrderLineCommand(productId, 2))
+            List.of(new OrderDto.OrderLineCommand(productId, 2)),
+            null
         );
 
         assertThat(result.userId()).isEqualTo(userId);
@@ -84,7 +93,8 @@ class OrderApplicationServiceTest {
         assertThatThrownBy(() ->
             orderApplicationService.placeOrder(
                 userId,
-                List.of(new OrderDto.OrderLineCommand(productId, 1))
+                List.of(new OrderDto.OrderLineCommand(productId, 1)),
+                null
             )
         ).isInstanceOf(CoreException.class)
          .satisfies(e -> assertThat(((CoreException) e).getErrorType())
@@ -105,7 +115,8 @@ class OrderApplicationServiceTest {
         assertThatThrownBy(() ->
             orderApplicationService.placeOrder(
                 userId,
-                List.of(new OrderDto.OrderLineCommand(productId, 1))
+                List.of(new OrderDto.OrderLineCommand(productId, 1)),
+                null
             )
         ).isInstanceOf(CoreException.class)
          .satisfies(e -> assertThat(((CoreException) e).getErrorType())
@@ -125,7 +136,8 @@ class OrderApplicationServiceTest {
         assertThatThrownBy(() ->
             orderApplicationService.placeOrder(
                 userId,
-                List.of(new OrderDto.OrderLineCommand(productId, 1))
+                List.of(new OrderDto.OrderLineCommand(productId, 1)),
+                null
             )
         ).isInstanceOf(CoreException.class)
          .satisfies(e -> assertThat(((CoreException) e).getErrorType())

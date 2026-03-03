@@ -81,7 +81,8 @@ class OrderApplicationServiceIntegrationTest {
     void placeOrder_success() {
         OrderDto.OrderInfo result = orderApplicationService.placeOrder(
             userId,
-            List.of(new OrderDto.OrderLineCommand(productId, 2))
+            List.of(new OrderDto.OrderLineCommand(productId, 2)),
+            null
         );
 
         assertThat(result.userId()).isEqualTo(userId);
@@ -100,7 +101,8 @@ class OrderApplicationServiceIntegrationTest {
         assertThatThrownBy(() ->
             orderApplicationService.placeOrder(
                 userId,
-                List.of(new OrderDto.OrderLineCommand(productId, 6))
+                List.of(new OrderDto.OrderLineCommand(productId, 6)),
+                null
             )
         )
             .isInstanceOf(CoreException.class)
@@ -116,7 +118,8 @@ class OrderApplicationServiceIntegrationTest {
     void getOrder_success() {
         OrderDto.OrderInfo created = orderApplicationService.placeOrder(
             userId,
-            List.of(new OrderDto.OrderLineCommand(productId, 1))
+            List.of(new OrderDto.OrderLineCommand(productId, 1)),
+            null
         );
 
         OrderDto.OrderInfo found = orderApplicationService.getOrder(userId, created.id());
@@ -140,7 +143,8 @@ class OrderApplicationServiceIntegrationTest {
     void getOrders_success() {
         orderApplicationService.placeOrder(
             userId,
-            List.of(new OrderDto.OrderLineCommand(productId, 1))
+            List.of(new OrderDto.OrderLineCommand(productId, 1)),
+            null
         );
 
         ZonedDateTime startAt = ZonedDateTime.now().minusDays(1);
@@ -155,7 +159,8 @@ class OrderApplicationServiceIntegrationTest {
     void cancelOrder_success() {
         OrderDto.OrderInfo created = orderApplicationService.placeOrder(
             userId,
-            List.of(new OrderDto.OrderLineCommand(productId, 2))
+            List.of(new OrderDto.OrderLineCommand(productId, 2)),
+            null
         );
 
         OrderDto.OrderInfo cancelled = orderApplicationService.cancelOrder(userId, created.id());
@@ -170,7 +175,8 @@ class OrderApplicationServiceIntegrationTest {
     void cancelOrder_idempotent() {
         OrderDto.OrderInfo created = orderApplicationService.placeOrder(
             userId,
-            List.of(new OrderDto.OrderLineCommand(productId, 1))
+            List.of(new OrderDto.OrderLineCommand(productId, 1)),
+            null
         );
         orderApplicationService.cancelOrder(userId, created.id());
 

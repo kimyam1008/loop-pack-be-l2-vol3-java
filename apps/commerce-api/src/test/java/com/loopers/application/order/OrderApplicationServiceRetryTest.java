@@ -1,5 +1,7 @@
 package com.loopers.application.order;
 
+import com.loopers.domain.coupon.CouponIssueRepository;
+import com.loopers.domain.coupon.CouponRepository;
 import com.loopers.domain.order.Order;
 import com.loopers.domain.order.OrderDomainService;
 import com.loopers.domain.order.OrderRepository;
@@ -46,6 +48,16 @@ class OrderApplicationServiceRetryTest {
         }
 
         @Bean
+        CouponRepository couponRepository() {
+            return mock(CouponRepository.class);
+        }
+
+        @Bean
+        CouponIssueRepository couponIssueRepository() {
+            return mock(CouponIssueRepository.class);
+        }
+
+        @Bean
         OrderDomainService orderDomainService() {
             return new OrderDomainService();
         }
@@ -55,9 +67,11 @@ class OrderApplicationServiceRetryTest {
             OrderRepository orderRepository,
             ProductRepository productRepository,
             UserRepository userRepository,
+            CouponRepository couponRepository,
+            CouponIssueRepository couponIssueRepository,
             OrderDomainService orderDomainService
         ) {
-            return new OrderApplicationService(orderRepository, productRepository, userRepository, orderDomainService);
+            return new OrderApplicationService(orderRepository, productRepository, userRepository, couponRepository, couponIssueRepository, orderDomainService);
         }
     }
 
@@ -100,7 +114,8 @@ class OrderApplicationServiceRetryTest {
 
         OrderDto.OrderInfo result = orderApplicationService.placeOrder(
             userId,
-            List.of(new OrderDto.OrderLineCommand(productId, 1))
+            List.of(new OrderDto.OrderLineCommand(productId, 1)),
+            null
         );
 
         assertThat(result.items()).hasSize(1);
