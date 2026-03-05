@@ -17,8 +17,16 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -191,6 +199,49 @@ class CouponApplicationServiceIntegrationTest {
         CouponDto.CouponIssueInfo second = couponApplicationService.issue(userId, couponId);
 
         assertThat(second.id()).isEqualTo(first.id());
+
+        Page<CouponDto.CouponIssueInfo> issues = couponApplicationService.getIssues(couponId, PageRequest.of(0, 10));
+        assertThat(issues.getTotalElements()).isEqualTo(1);
+    }
+
+    @DisplayName("issue: 동시 발급 요청이 들어와도 발급 내역은 1건만 생성된다")
+    @Test
+    void issue_concurrent_idempotent() throws InterruptedException {
+        int concurrency = 20;
+        ExecutorService executor = Executors.newFixedThreadPool(concurrency);
+        CountDownLatch ready = new CountDownLatch(concurrency);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(concurrency);
+
+        List<Long> issueIds = Collections.synchronizedList(new ArrayList<>());
+        List<Throwable> failures = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < concurrency; i++) {
+            executor.submit(() -> {
+                ready.countDown();
+                try {
+                    start.await();
+                    CouponDto.CouponIssueInfo issued = couponApplicationService.issue(userId, couponId);
+                    issueIds.add(issued.id());
+                } catch (Throwable t) {
+                    failures.add(t);
+                } finally {
+                    done.countDown();
+                }
+            });
+        }
+
+        assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+        start.countDown();
+        assertThat(done.await(15, TimeUnit.SECONDS)).isTrue();
+
+        executor.shutdown();
+        assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+
+        assertThat(failures).isEmpty();
+        assertThat(issueIds).hasSize(concurrency);
+        assertThat(issueIds).doesNotContainNull();
+        assertThat(Set.copyOf(issueIds)).hasSize(1);
 
         Page<CouponDto.CouponIssueInfo> issues = couponApplicationService.getIssues(couponId, PageRequest.of(0, 10));
         assertThat(issues.getTotalElements()).isEqualTo(1);

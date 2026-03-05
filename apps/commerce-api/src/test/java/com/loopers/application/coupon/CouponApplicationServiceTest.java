@@ -14,6 +14,7 @@ import com.loopers.support.error.ErrorType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -229,7 +230,6 @@ class CouponApplicationServiceTest {
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(mock(User.class)));
         when(couponRepository.findById(couponId)).thenReturn(Optional.of(coupon));
-        when(couponIssueRepository.findByCouponIdAndUserId(couponId, userId)).thenReturn(Optional.empty());
         when(couponIssueRepository.save(any(CouponIssue.class))).thenAnswer(i -> i.getArgument(0));
 
         CouponDto.CouponIssueInfo result = couponApplicationService.issue(userId, couponId);
@@ -250,12 +250,15 @@ class CouponApplicationServiceTest {
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(mock(User.class)));
         when(couponRepository.findById(couponId)).thenReturn(Optional.of(coupon));
+        when(couponIssueRepository.save(any(CouponIssue.class)))
+            .thenThrow(new DataIntegrityViolationException("duplicate coupon issue"));
         when(couponIssueRepository.findByCouponIdAndUserId(couponId, userId)).thenReturn(Optional.of(existing));
 
         CouponDto.CouponIssueInfo result = couponApplicationService.issue(userId, couponId);
 
         assertThat(result.userId()).isEqualTo(userId);
-        verify(couponIssueRepository, never()).save(any());
+        verify(couponIssueRepository).save(any(CouponIssue.class));
+        verify(couponIssueRepository).findByCouponIdAndUserId(couponId, userId);
     }
 
     @DisplayName("issue: 존재하지 않는 사용자가 발급 요청하면 예외가 발생한다")

@@ -10,6 +10,7 @@ import com.loopers.domain.user.UserRepository;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -81,19 +82,25 @@ public class CouponApplicationService {
     // User: 쿠폰 발급 / 목록 조회
     // ─────────────────────────────────────────
 
-    @Transactional
+    // @Transactional 미적용 의도:
+    // insert-first 패턴에서 save() 실패 시 DataIntegrityViolationException을 catch하여
+    // 기존 발급건을 재조회(멱등 처리)하려면, save()가 독립 트랜잭션으로 완전히 롤백된 후
+    // catch 블록이 새 트랜잭션으로 실행되어야 한다.
+    // @Transactional이 있으면 예외 발생 시 트랜잭션이 rollback-only로 마킹되어 재조회가 불가능하다.
     public CouponDto.CouponIssueInfo issue(Long userId, Long couponId) {
         userRepository.findById(userId)
             .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
         Coupon coupon = couponRepository.findById(couponId)
             .orElseThrow(() -> new CoreException(ErrorType.COUPON_NOT_FOUND));
 
-        return couponIssueRepository.findByCouponIdAndUserId(couponId, userId)
-            .map(CouponDto.CouponIssueInfo::from)
-            .orElseGet(() -> {
-                CouponIssue issue = couponDomainService.createIssue(couponId, userId, coupon.getValidDays());
-                return CouponDto.CouponIssueInfo.from(couponIssueRepository.save(issue));
-            });
+        CouponIssue issue = couponDomainService.createIssue(couponId, userId, coupon.getValidDays());
+        try {
+            return CouponDto.CouponIssueInfo.from(couponIssueRepository.save(issue));
+        } catch (DataIntegrityViolationException e) {
+            return couponIssueRepository.findByCouponIdAndUserId(couponId, userId)
+                .map(CouponDto.CouponIssueInfo::from)
+                .orElseThrow(() -> e);
+        }
     }
 
     @Transactional(readOnly = true)

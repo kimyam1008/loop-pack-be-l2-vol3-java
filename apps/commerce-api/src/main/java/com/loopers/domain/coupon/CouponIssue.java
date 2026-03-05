@@ -10,6 +10,9 @@ import java.time.ZonedDateTime;
 @Entity
 @Table(
     name = "coupon_issues",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_coupon_issue_coupon_user", columnNames = {"coupon_id", "user_id"})
+    },
     indexes = {
         @Index(name = "idx_coupon_issue_coupon_id", columnList = "coupon_id"),
         @Index(name = "idx_coupon_issue_user_id", columnList = "user_id")

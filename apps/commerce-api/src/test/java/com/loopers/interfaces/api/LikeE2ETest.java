@@ -108,8 +108,7 @@ class LikeE2ETest {
         mockMvc.perform(delete("/api/v1/products/" + productId + "/likes")
                 .header("X-Loopers-User-Id", userId))
             .andDo(print())
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.meta.result").value("SUCCESS"));
+            .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/v1/users/" + userId + "/likes")
                 .header("X-Loopers-User-Id", userId)

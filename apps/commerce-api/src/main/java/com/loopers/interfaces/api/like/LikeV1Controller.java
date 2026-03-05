@@ -8,6 +8,7 @@ import com.loopers.support.error.ErrorType;
 import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,13 +33,13 @@ public class LikeV1Controller {
     }
 
     @DeleteMapping("/api/v1/products/{productId}/likes")
-    public ApiResponse<Void> unlike(
+    public ResponseEntity<Void> unlike(
         @RequestHeader("X-Loopers-User-Id") Long userId,
         @PathVariable Long productId
     ) {
         try {
             likeApplicationService.unlike(userId, productId);
-            return ApiResponse.success(null);
+            return ResponseEntity.noContent().build();
         } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
             throw new CoreException(ErrorType.CONFLICT, "동시 요청으로 실패했습니다. 다시 시도해주세요");
         }
