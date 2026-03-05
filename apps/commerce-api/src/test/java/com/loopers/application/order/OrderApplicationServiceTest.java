@@ -8,6 +8,7 @@ import com.loopers.domain.order.OrderItem;
 import com.loopers.domain.order.OrderRepository;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductRepository;
+import com.loopers.domain.product.exception.ProductInsufficientStockException;
 import com.loopers.domain.user.User;
 import com.loopers.domain.user.UserRepository;
 import com.loopers.support.error.CoreException;
@@ -48,13 +49,22 @@ class OrderApplicationServiceTest {
         userRepository = mock(UserRepository.class);
         couponRepository = mock(CouponRepository.class);
         couponIssueRepository = mock(CouponIssueRepository.class);
+        OrderDomainService orderDomainService = new OrderDomainService();
+        OrderPlacementTxService orderPlacementTxService = new OrderPlacementTxService(
+            orderRepository,
+            productRepository,
+            couponRepository,
+            couponIssueRepository,
+            orderDomainService
+        );
         orderApplicationService = new OrderApplicationService(
             orderRepository,
             productRepository,
             userRepository,
             couponRepository,
             couponIssueRepository,
-            new OrderDomainService()
+            orderDomainService,
+            orderPlacementTxService
         );
     }
 
@@ -64,7 +74,7 @@ class OrderApplicationServiceTest {
         User user = mock(User.class);
         Product product = mock(Product.class);
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(productRepository.findAllByIds(any())).thenReturn(List.of(product));
         when(product.getId()).thenReturn(productId);
         when(product.getName()).thenReturn("주문 상품");
         when(product.getPrice()).thenReturn(BigDecimal.valueOf(12000));
@@ -107,10 +117,14 @@ class OrderApplicationServiceTest {
     @Test
     void placeOrder_fail_insufficientStock() {
         User user = mock(User.class);
-        Product product = Product.create(1L, "신발", "설명", BigDecimal.valueOf(10000), 0);
+        Product product = mock(Product.class);
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(productRepository.findAllByIds(any())).thenReturn(List.of(product));
+        when(product.getId()).thenReturn(productId);
+        when(product.getName()).thenReturn("신발");
+        when(product.getPrice()).thenReturn(BigDecimal.valueOf(10000));
+        doThrow(new ProductInsufficientStockException()).when(product).decreaseStock(1);
 
         assertThatThrownBy(() ->
             orderApplicationService.placeOrder(
@@ -131,7 +145,7 @@ class OrderApplicationServiceTest {
     void placeOrder_fail_productNotFound() {
         User user = mock(User.class);
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(productRepository.findById(productId)).thenReturn(Optional.empty());
+        when(productRepository.findAllByIds(any())).thenReturn(List.of());
 
         assertThatThrownBy(() ->
             orderApplicationService.placeOrder(

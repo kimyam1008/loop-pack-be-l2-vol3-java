@@ -1,18 +1,12 @@
 package com.loopers.application.order;
 
-import com.loopers.domain.coupon.Coupon;
-import com.loopers.domain.coupon.CouponIssue;
 import com.loopers.domain.coupon.CouponIssueRepository;
 import com.loopers.domain.coupon.CouponRepository;
-import com.loopers.domain.coupon.exception.CouponNotAvailableException;
 import com.loopers.domain.order.Order;
 import com.loopers.domain.order.OrderDomainService;
-import com.loopers.domain.order.OrderItem;
 import com.loopers.domain.order.OrderRepository;
-import com.loopers.domain.order.exception.EmptyOrderItemException;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductRepository;
-import com.loopers.domain.product.exception.ProductInsufficientStockException;
 import com.loopers.domain.user.UserRepository;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
@@ -26,10 +20,8 @@ import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +36,8 @@ public class OrderApplicationService {
     private final CouponRepository couponRepository;
     private final CouponIssueRepository couponIssueRepository;
     private final OrderDomainService orderDomainService;
+    private final OrderPlacementTxService orderPlacementTxService;
 
-    @Transactional
     @Retryable(
         retryFor = {
             ObjectOptimisticLockingFailureException.class,
@@ -58,66 +50,8 @@ public class OrderApplicationService {
         userRepository.findById(userId)
             .orElseThrow(() -> new CoreException(ErrorType.USER_NOT_FOUND));
 
-        CouponIssue couponIssue = null;
-        Coupon couponTemplate = null;
-        if (couponIssueId != null) {
-            couponIssue = couponIssueRepository.findByIdAndUserId(couponIssueId, userId)
-                .orElseThrow(() -> new CoreException(ErrorType.COUPON_NOT_FOUND));
-            try {
-                couponIssue.use();
-            } catch (CouponNotAvailableException e) {
-                throw new CoreException(ErrorType.COUPON_NOT_AVAILABLE);
-            }
-            couponTemplate = couponRepository.findById(couponIssue.getCouponId())
-                .orElseThrow(() -> new CoreException(ErrorType.COUPON_NOT_FOUND));
-        }
-
-        List<OrderItem> orderItems = new ArrayList<>();
-        Map<Long, Product> touchedProducts = new LinkedHashMap<>();
-
-        if (items != null) {
-            for (OrderDto.OrderLineCommand item : items) {
-                if (item == null || item.productId() == null) {
-                    throw new IllegalArgumentException("상품 ID는 필수입니다");
-                }
-
-                Product product = productRepository.findById(item.productId())
-                    .orElseThrow(() -> new CoreException(ErrorType.PRODUCT_NOT_FOUND));
-
-                try {
-                    product.decreaseStock(item.quantity());
-                } catch (ProductInsufficientStockException e) {
-                    throw new CoreException(ErrorType.PRODUCT_INSUFFICIENT_STOCK);
-                }
-                orderItems.add(OrderItem.createSnapshot(
-                    product.getId(), product.getName(), product.getPrice(), item.quantity()
-                ));
-                touchedProducts.put(product.getId(), product);
-            }
-        }
-
-        Order order;
-        try {
-            order = orderDomainService.createOrder(userId, orderItems);
-        } catch (EmptyOrderItemException e) {
-            throw new CoreException(ErrorType.ORDER_EMPTY_ITEMS);
-        }
-
-        if (couponIssue != null && couponTemplate != null) {
-            BigDecimal discountAmount = couponTemplate.calculateDiscount(order.getTotalAmount());
-            order.applyDiscount(couponIssue.getId(), discountAmount);
-        }
-
-        Order savedOrder = orderRepository.save(order);
-
-        for (Product touchedProduct : touchedProducts.values()) {
-            productRepository.save(touchedProduct);
-        }
-        if (couponIssue != null) {
-            couponIssueRepository.save(couponIssue);
-        }
-
-        return OrderDto.OrderInfo.from(savedOrder);
+        validatePlaceOrderItems(items);
+        return orderPlacementTxService.placeOrder(userId, items, couponIssueId);
     }
 
     @Transactional(readOnly = true)
@@ -195,5 +129,16 @@ public class OrderApplicationService {
         Order order = orderRepository.findById(orderId)
             .orElseThrow(() -> new CoreException(ErrorType.ORDER_NOT_FOUND));
         return OrderDto.OrderInfo.from(order);
+    }
+
+    private void validatePlaceOrderItems(List<OrderDto.OrderLineCommand> items) {
+        if (items == null) {
+            return;
+        }
+        for (OrderDto.OrderLineCommand item : items) {
+            if (item == null || item.productId() == null) {
+                throw new IllegalArgumentException("상품 ID는 필수입니다");
+            }
+        }
     }
 }

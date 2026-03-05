@@ -75,9 +75,35 @@ class OrderApplicationServiceRetryTest {
             UserRepository userRepository,
             CouponRepository couponRepository,
             CouponIssueRepository couponIssueRepository,
+            OrderDomainService orderDomainService,
+            OrderPlacementTxService orderPlacementTxService
+        ) {
+            return new OrderApplicationService(
+                orderRepository,
+                productRepository,
+                userRepository,
+                couponRepository,
+                couponIssueRepository,
+                orderDomainService,
+                orderPlacementTxService
+            );
+        }
+
+        @Bean
+        OrderPlacementTxService orderPlacementTxService(
+            OrderRepository orderRepository,
+            ProductRepository productRepository,
+            CouponRepository couponRepository,
+            CouponIssueRepository couponIssueRepository,
             OrderDomainService orderDomainService
         ) {
-            return new OrderApplicationService(orderRepository, productRepository, userRepository, couponRepository, couponIssueRepository, orderDomainService);
+            return new OrderPlacementTxService(
+                orderRepository,
+                productRepository,
+                couponRepository,
+                couponIssueRepository,
+                orderDomainService
+            );
         }
     }
 
@@ -114,7 +140,7 @@ class OrderApplicationServiceRetryTest {
         Product product = mock(Product.class);
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(productRepository.findAllByIds(any())).thenReturn(List.of(product));
         when(product.getId()).thenReturn(productId);
         when(product.getName()).thenReturn("재시도 상품");
         when(product.getPrice()).thenReturn(BigDecimal.valueOf(1000));
@@ -153,7 +179,7 @@ class OrderApplicationServiceRetryTest {
         usedIssue.use();
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(productRepository.findAllByIds(any())).thenReturn(List.of(product));
         when(product.getId()).thenReturn(productId);
         when(product.getName()).thenReturn("상품");
         when(product.getPrice()).thenReturn(BigDecimal.valueOf(1000));
