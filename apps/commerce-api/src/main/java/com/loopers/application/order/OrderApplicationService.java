@@ -52,7 +52,7 @@ public class OrderApplicationService {
             OptimisticLockException.class
         },
         maxAttempts = 3,
-        backoff = @Backoff(delay = 30)
+        backoff = @Backoff(delay = 100, multiplier = 2.0)
     )
     public OrderDto.OrderInfo placeOrder(Long userId, List<OrderDto.OrderLineCommand> items, Long couponIssueId) {
         userRepository.findById(userId)
@@ -134,7 +134,7 @@ public class OrderApplicationService {
             OptimisticLockException.class
         },
         maxAttempts = 3,
-        backoff = @Backoff(delay = 30)
+        backoff = @Backoff(delay = 100, multiplier = 2.0)
     )
     public OrderDto.OrderInfo cancelOrder(Long userId, Long orderId) {
         Order order = orderRepository.findByIdAndUserId(orderId, userId)
@@ -158,7 +158,7 @@ public class OrderApplicationService {
         }
 
         if (order.getCouponId() != null) {
-            couponIssueRepository.findById(order.getCouponId()).ifPresent(issue -> {
+            couponIssueRepository.findByIdAndUserId(order.getCouponId(), userId).ifPresent(issue -> {
                 issue.revoke();
                 couponIssueRepository.save(issue);
             });

@@ -34,6 +34,10 @@ public class CouponIssue extends BaseEntity {
     @Column(name = "used_at")
     private ZonedDateTime usedAt;
 
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
     protected CouponIssue() {
     }
 
