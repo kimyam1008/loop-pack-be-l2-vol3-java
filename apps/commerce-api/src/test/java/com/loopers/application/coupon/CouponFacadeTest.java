@@ -1,7 +1,7 @@
 package com.loopers.application.coupon;
 
 import com.loopers.domain.coupon.Coupon;
-import com.loopers.domain.coupon.CouponDomainService;
+import com.loopers.domain.coupon.CouponService;
 import com.loopers.domain.coupon.CouponIssue;
 import com.loopers.domain.coupon.CouponIssueRepository;
 import com.loopers.domain.coupon.CouponIssueStatus;
@@ -33,23 +33,23 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class CouponApplicationServiceTest {
+class CouponFacadeTest {
 
     private CouponRepository couponRepository;
     private CouponIssueRepository couponIssueRepository;
     private UserRepository userRepository;
-    private CouponApplicationService couponApplicationService;
+    private CouponFacade couponFacade;
 
     @BeforeEach
     void setUp() {
         couponRepository = mock(CouponRepository.class);
         couponIssueRepository = mock(CouponIssueRepository.class);
         userRepository = mock(UserRepository.class);
-        couponApplicationService = new CouponApplicationService(
+        couponFacade = new CouponFacade(
             couponRepository,
             couponIssueRepository,
             userRepository,
-            new CouponDomainService()
+            new CouponService()
         );
     }
 
@@ -62,7 +62,7 @@ class CouponApplicationServiceTest {
     void registerTemplate_success() {
         when(couponRepository.save(any(Coupon.class))).thenAnswer(i -> i.getArgument(0));
 
-        CouponDto.CouponInfo result = couponApplicationService.registerTemplate(
+        CouponDto.CouponInfo result = couponFacade.registerTemplate(
             "신규 가입 쿠폰", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), ZonedDateTime.now().plusDays(30)
         );
 
@@ -77,7 +77,7 @@ class CouponApplicationServiceTest {
     @Test
     void registerTemplate_fail_blankName() {
         assertThatThrownBy(() ->
-            couponApplicationService.registerTemplate(
+            couponFacade.registerTemplate(
                 "", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), ZonedDateTime.now().plusDays(30)
             )
         ).isInstanceOf(IllegalArgumentException.class);
@@ -96,7 +96,7 @@ class CouponApplicationServiceTest {
         PageRequest pageable = PageRequest.of(0, 10);
         when(couponRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(coupon)));
 
-        Page<CouponDto.CouponInfo> result = couponApplicationService.getTemplates(pageable);
+        Page<CouponDto.CouponInfo> result = couponFacade.getTemplates(pageable);
 
         assertThat(result.getTotalElements()).isEqualTo(1);
         assertThat(result.getContent().getFirst().name()).isEqualTo("쿠폰A");
@@ -108,7 +108,7 @@ class CouponApplicationServiceTest {
         Coupon coupon = Coupon.create("쿠폰A", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), ZonedDateTime.now().plusDays(7));
         when(couponRepository.findById(1L)).thenReturn(Optional.of(coupon));
 
-        CouponDto.CouponInfo result = couponApplicationService.getTemplate(1L);
+        CouponDto.CouponInfo result = couponFacade.getTemplate(1L);
 
         assertThat(result.name()).isEqualTo("쿠폰A");
     }
@@ -118,7 +118,7 @@ class CouponApplicationServiceTest {
     void getTemplate_fail_notFound() {
         when(couponRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> couponApplicationService.getTemplate(999L))
+        assertThatThrownBy(() -> couponFacade.getTemplate(999L))
             .isInstanceOf(CoreException.class)
             .satisfies(e -> assertThat(((CoreException) e).getErrorType())
                 .isEqualTo(ErrorType.COUPON_NOT_FOUND));
@@ -135,7 +135,7 @@ class CouponApplicationServiceTest {
         when(couponRepository.findById(1L)).thenReturn(Optional.of(coupon));
         when(couponRepository.save(any(Coupon.class))).thenAnswer(i -> i.getArgument(0));
 
-        CouponDto.CouponInfo result = couponApplicationService.updateTemplate(
+        CouponDto.CouponInfo result = couponFacade.updateTemplate(
             1L, "수정된 쿠폰", "수정된 설명", CouponType.RATE, BigDecimal.valueOf(15), ZonedDateTime.now().plusDays(14)
         );
 
@@ -150,7 +150,7 @@ class CouponApplicationServiceTest {
         when(couponRepository.findById(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() ->
-            couponApplicationService.updateTemplate(
+            couponFacade.updateTemplate(
                 999L, "수정", "설명", CouponType.FIXED, BigDecimal.valueOf(1000), ZonedDateTime.now().plusDays(7)
             )
         ).isInstanceOf(CoreException.class)
@@ -169,7 +169,7 @@ class CouponApplicationServiceTest {
         when(couponRepository.findById(1L)).thenReturn(Optional.of(coupon));
         when(couponRepository.save(any(Coupon.class))).thenAnswer(i -> i.getArgument(0));
 
-        assertThatCode(() -> couponApplicationService.deleteTemplate(1L))
+        assertThatCode(() -> couponFacade.deleteTemplate(1L))
             .doesNotThrowAnyException();
 
         verify(couponRepository).save(any(Coupon.class));
@@ -180,7 +180,7 @@ class CouponApplicationServiceTest {
     void deleteTemplate_fail_notFound() {
         when(couponRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> couponApplicationService.deleteTemplate(999L))
+        assertThatThrownBy(() -> couponFacade.deleteTemplate(999L))
             .isInstanceOf(CoreException.class)
             .satisfies(e -> assertThat(((CoreException) e).getErrorType())
                 .isEqualTo(ErrorType.COUPON_NOT_FOUND));
@@ -200,7 +200,7 @@ class CouponApplicationServiceTest {
         when(couponRepository.findById(1L)).thenReturn(Optional.of(coupon));
         when(couponIssueRepository.findByCouponId(1L, pageable)).thenReturn(new PageImpl<>(List.of(issue)));
 
-        Page<CouponDto.CouponIssueInfo> result = couponApplicationService.getIssues(1L, pageable);
+        Page<CouponDto.CouponIssueInfo> result = couponFacade.getIssues(1L, pageable);
 
         assertThat(result.getTotalElements()).isEqualTo(1);
         assertThat(result.getContent().getFirst().userId()).isEqualTo(10L);
@@ -211,7 +211,7 @@ class CouponApplicationServiceTest {
     void getIssues_fail_couponNotFound() {
         when(couponRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> couponApplicationService.getIssues(999L, PageRequest.of(0, 10)))
+        assertThatThrownBy(() -> couponFacade.getIssues(999L, PageRequest.of(0, 10)))
             .isInstanceOf(CoreException.class)
             .satisfies(e -> assertThat(((CoreException) e).getErrorType())
                 .isEqualTo(ErrorType.COUPON_NOT_FOUND));
@@ -232,7 +232,7 @@ class CouponApplicationServiceTest {
         when(couponRepository.findById(couponId)).thenReturn(Optional.of(coupon));
         when(couponIssueRepository.save(any(CouponIssue.class))).thenAnswer(i -> i.getArgument(0));
 
-        CouponDto.CouponIssueInfo result = couponApplicationService.issue(userId, couponId);
+        CouponDto.CouponIssueInfo result = couponFacade.issue(userId, couponId);
 
         assertThat(result.userId()).isEqualTo(userId);
         assertThat(result.couponId()).isEqualTo(couponId);
@@ -254,7 +254,7 @@ class CouponApplicationServiceTest {
             .thenThrow(new DataIntegrityViolationException("duplicate coupon issue"));
         when(couponIssueRepository.findByCouponIdAndUserId(couponId, userId)).thenReturn(Optional.of(existing));
 
-        CouponDto.CouponIssueInfo result = couponApplicationService.issue(userId, couponId);
+        CouponDto.CouponIssueInfo result = couponFacade.issue(userId, couponId);
 
         assertThat(result.userId()).isEqualTo(userId);
         verify(couponIssueRepository).save(any(CouponIssue.class));
@@ -266,7 +266,7 @@ class CouponApplicationServiceTest {
     void issue_fail_userNotFound() {
         when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> couponApplicationService.issue(99L, 1L))
+        assertThatThrownBy(() -> couponFacade.issue(99L, 1L))
             .isInstanceOf(CoreException.class)
             .satisfies(e -> assertThat(((CoreException) e).getErrorType())
                 .isEqualTo(ErrorType.USER_NOT_FOUND));
@@ -278,7 +278,7 @@ class CouponApplicationServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(mock(User.class)));
         when(couponRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> couponApplicationService.issue(1L, 999L))
+        assertThatThrownBy(() -> couponFacade.issue(1L, 999L))
             .isInstanceOf(CoreException.class)
             .satisfies(e -> assertThat(((CoreException) e).getErrorType())
                 .isEqualTo(ErrorType.COUPON_NOT_FOUND));
@@ -305,7 +305,7 @@ class CouponApplicationServiceTest {
         when(couponIssueRepository.findByUserId(userId, pageable)).thenReturn(new PageImpl<>(List.of(issue)));
         when(couponRepository.findAllByIds(any())).thenReturn(List.of(coupon));
 
-        Page<CouponDto.MyCouponInfo> result = couponApplicationService.getMyCoupons(userId, pageable);
+        Page<CouponDto.MyCouponInfo> result = couponFacade.getMyCoupons(userId, pageable);
 
         assertThat(result.getTotalElements()).isEqualTo(1);
     }
@@ -315,7 +315,7 @@ class CouponApplicationServiceTest {
     void getMyCoupons_fail_userNotFound() {
         when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> couponApplicationService.getMyCoupons(99L, PageRequest.of(0, 10)))
+        assertThatThrownBy(() -> couponFacade.getMyCoupons(99L, PageRequest.of(0, 10)))
             .isInstanceOf(CoreException.class)
             .satisfies(e -> assertThat(((CoreException) e).getErrorType())
                 .isEqualTo(ErrorType.USER_NOT_FOUND));

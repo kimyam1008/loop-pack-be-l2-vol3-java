@@ -1,6 +1,6 @@
 package com.loopers.interfaces.api.coupon;
 
-import com.loopers.application.coupon.CouponApplicationService;
+import com.loopers.application.coupon.CouponFacade;
 import com.loopers.interfaces.api.ApiResponse;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class CouponV1Controller {
 
-    private final CouponApplicationService couponApplicationService;
+    private final CouponFacade couponFacade;
 
     // ─────────────────────────────────────────
     // Admin APIs
@@ -22,14 +22,14 @@ public class CouponV1Controller {
     @GetMapping("/api-admin/v1/coupons")
     public ApiResponse<CouponV1Dto.CouponTemplatePageResponse> getTemplates(Pageable pageable) {
         return ApiResponse.success(
-            CouponV1Dto.CouponTemplatePageResponse.from(couponApplicationService.getTemplates(pageable))
+            CouponV1Dto.CouponTemplatePageResponse.from(couponFacade.getTemplates(pageable))
         );
     }
 
     @GetMapping("/api-admin/v1/coupons/{couponId}")
     public ApiResponse<CouponV1Dto.CouponTemplateResponse> getTemplate(@PathVariable Long couponId) {
         return ApiResponse.success(
-            CouponV1Dto.CouponTemplateResponse.from(couponApplicationService.getTemplate(couponId))
+            CouponV1Dto.CouponTemplateResponse.from(couponFacade.getTemplate(couponId))
         );
     }
 
@@ -39,7 +39,7 @@ public class CouponV1Controller {
     ) {
         try {
             return ApiResponse.success(CouponV1Dto.CouponTemplateResponse.from(
-                couponApplicationService.registerTemplate(
+                couponFacade.registerTemplate(
                     request.name(),
                     request.description(),
                     request.type(),
@@ -59,7 +59,7 @@ public class CouponV1Controller {
     ) {
         try {
             return ApiResponse.success(CouponV1Dto.CouponTemplateResponse.from(
-                couponApplicationService.updateTemplate(
+                couponFacade.updateTemplate(
                     couponId,
                     request.name(),
                     request.description(),
@@ -75,7 +75,7 @@ public class CouponV1Controller {
 
     @DeleteMapping("/api-admin/v1/coupons/{couponId}")
     public ApiResponse<Void> deleteTemplate(@PathVariable Long couponId) {
-        couponApplicationService.deleteTemplate(couponId);
+        couponFacade.deleteTemplate(couponId);
         return ApiResponse.success(null);
     }
 
@@ -85,7 +85,7 @@ public class CouponV1Controller {
         Pageable pageable
     ) {
         return ApiResponse.success(
-            CouponV1Dto.CouponIssuePageResponse.from(couponApplicationService.getIssues(couponId, pageable))
+            CouponV1Dto.CouponIssuePageResponse.from(couponFacade.getIssues(couponId, pageable))
         );
     }
 
@@ -99,7 +99,7 @@ public class CouponV1Controller {
         @PathVariable Long couponId
     ) {
         return ApiResponse.success(
-            CouponV1Dto.CouponIssueResponse.from(couponApplicationService.issue(userId, couponId))
+            CouponV1Dto.CouponIssueResponse.from(couponFacade.issue(userId, couponId))
         );
     }
 
@@ -109,7 +109,7 @@ public class CouponV1Controller {
         Pageable pageable
     ) {
         return ApiResponse.success(
-            CouponV1Dto.MyCouponPageResponse.from(couponApplicationService.getMyCoupons(userId, pageable))
+            CouponV1Dto.MyCouponPageResponse.from(couponFacade.getMyCoupons(userId, pageable))
         );
     }
 }

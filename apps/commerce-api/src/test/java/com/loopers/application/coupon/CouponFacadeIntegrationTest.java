@@ -1,6 +1,6 @@
 package com.loopers.application.coupon;
 
-import com.loopers.application.user.UserApplicationService;
+import com.loopers.application.user.UserFacade;
 import com.loopers.application.user.UserDto;
 import com.loopers.domain.coupon.CouponIssueStatus;
 import com.loopers.domain.coupon.CouponType;
@@ -33,13 +33,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
-class CouponApplicationServiceIntegrationTest {
+class CouponFacadeIntegrationTest {
 
     @Autowired
-    private CouponApplicationService couponApplicationService;
+    private CouponFacade couponFacade;
 
     @Autowired
-    private UserApplicationService userApplicationService;
+    private UserFacade userFacade;
 
     @Autowired
     private DatabaseCleanUp databaseCleanUp;
@@ -49,13 +49,13 @@ class CouponApplicationServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        UserDto.UserInfo user = userApplicationService.register(
+        UserDto.UserInfo user = userFacade.register(
             "cpnuser1", "TestPass1!", "쿠폰테스터",
             LocalDate.of(2000, 1, 1), "coupon1@loopers.com", Gender.FEMALE
         );
         userId = user.id();
 
-        CouponDto.CouponInfo coupon = couponApplicationService.registerTemplate(
+        CouponDto.CouponInfo coupon = couponFacade.registerTemplate(
             "신규 가입 쿠폰", "가입 혜택", CouponType.FIXED, BigDecimal.valueOf(5000), ZonedDateTime.now().plusDays(30)
         );
         couponId = coupon.id();
@@ -73,7 +73,7 @@ class CouponApplicationServiceIntegrationTest {
     @DisplayName("registerTemplate: 쿠폰 템플릿 등록 시 DB에 저장된다")
     @Test
     void registerTemplate_success() {
-        CouponDto.CouponInfo result = couponApplicationService.registerTemplate(
+        CouponDto.CouponInfo result = couponFacade.registerTemplate(
             "여름 할인 쿠폰", "여름 이벤트", CouponType.RATE, BigDecimal.valueOf(10), ZonedDateTime.now().plusDays(7)
         );
 
@@ -91,7 +91,7 @@ class CouponApplicationServiceIntegrationTest {
     @DisplayName("getTemplates: 등록된 쿠폰 템플릿 목록을 페이징으로 조회할 수 있다")
     @Test
     void getTemplates_success() {
-        Page<CouponDto.CouponInfo> result = couponApplicationService.getTemplates(PageRequest.of(0, 10));
+        Page<CouponDto.CouponInfo> result = couponFacade.getTemplates(PageRequest.of(0, 10));
 
         assertThat(result.getTotalElements()).isGreaterThanOrEqualTo(1);
         assertThat(result.getContent()).anyMatch(c -> c.id().equals(couponId));
@@ -100,7 +100,7 @@ class CouponApplicationServiceIntegrationTest {
     @DisplayName("getTemplate: 등록된 쿠폰 템플릿 상세를 조회할 수 있다")
     @Test
     void getTemplate_success() {
-        CouponDto.CouponInfo result = couponApplicationService.getTemplate(couponId);
+        CouponDto.CouponInfo result = couponFacade.getTemplate(couponId);
 
         assertThat(result.id()).isEqualTo(couponId);
         assertThat(result.name()).isEqualTo("신규 가입 쿠폰");
@@ -111,7 +111,7 @@ class CouponApplicationServiceIntegrationTest {
     @DisplayName("getTemplate: 존재하지 않는 쿠폰 조회 시 예외가 발생한다")
     @Test
     void getTemplate_fail_notFound() {
-        assertThatThrownBy(() -> couponApplicationService.getTemplate(9999L))
+        assertThatThrownBy(() -> couponFacade.getTemplate(9999L))
             .isInstanceOf(CoreException.class)
             .satisfies(e -> assertThat(((CoreException) e).getErrorType())
                 .isEqualTo(ErrorType.COUPON_NOT_FOUND));
@@ -124,7 +124,7 @@ class CouponApplicationServiceIntegrationTest {
     @DisplayName("updateTemplate: 쿠폰 템플릿 수정 시 변경 내용이 DB에 반영된다")
     @Test
     void updateTemplate_success() {
-        CouponDto.CouponInfo result = couponApplicationService.updateTemplate(
+        CouponDto.CouponInfo result = couponFacade.updateTemplate(
             couponId, "수정된 쿠폰", "수정된 설명", CouponType.RATE, BigDecimal.valueOf(15), ZonedDateTime.now().plusDays(14)
         );
 
@@ -133,7 +133,7 @@ class CouponApplicationServiceIntegrationTest {
         assertThat(result.discountValue()).isEqualByComparingTo("15");
         assertThat(result.expiredAt()).isAfter(ZonedDateTime.now());
 
-        CouponDto.CouponInfo reloaded = couponApplicationService.getTemplate(couponId);
+        CouponDto.CouponInfo reloaded = couponFacade.getTemplate(couponId);
         assertThat(reloaded.name()).isEqualTo("수정된 쿠폰");
     }
 
@@ -144,9 +144,9 @@ class CouponApplicationServiceIntegrationTest {
     @DisplayName("deleteTemplate: 쿠폰 템플릿 삭제 후 조회하면 예외가 발생한다")
     @Test
     void deleteTemplate_success() {
-        couponApplicationService.deleteTemplate(couponId);
+        couponFacade.deleteTemplate(couponId);
 
-        assertThatThrownBy(() -> couponApplicationService.getTemplate(couponId))
+        assertThatThrownBy(() -> couponFacade.getTemplate(couponId))
             .isInstanceOf(CoreException.class)
             .satisfies(e -> assertThat(((CoreException) e).getErrorType())
                 .isEqualTo(ErrorType.COUPON_NOT_FOUND));
@@ -159,9 +159,9 @@ class CouponApplicationServiceIntegrationTest {
     @DisplayName("getIssues: 쿠폰 발급 후 발급 내역을 조회할 수 있다")
     @Test
     void getIssues_success() {
-        couponApplicationService.issue(userId, couponId);
+        couponFacade.issue(userId, couponId);
 
-        Page<CouponDto.CouponIssueInfo> result = couponApplicationService.getIssues(couponId, PageRequest.of(0, 10));
+        Page<CouponDto.CouponIssueInfo> result = couponFacade.getIssues(couponId, PageRequest.of(0, 10));
 
         assertThat(result.getTotalElements()).isEqualTo(1);
         assertThat(result.getContent().getFirst().userId()).isEqualTo(userId);
@@ -172,7 +172,7 @@ class CouponApplicationServiceIntegrationTest {
     @DisplayName("getIssues: 발급 내역이 없으면 빈 페이지를 반환한다")
     @Test
     void getIssues_empty() {
-        Page<CouponDto.CouponIssueInfo> result = couponApplicationService.getIssues(couponId, PageRequest.of(0, 10));
+        Page<CouponDto.CouponIssueInfo> result = couponFacade.getIssues(couponId, PageRequest.of(0, 10));
 
         assertThat(result.getTotalElements()).isZero();
     }
@@ -184,7 +184,7 @@ class CouponApplicationServiceIntegrationTest {
     @DisplayName("issue: 쿠폰 발급 요청 시 발급 내역이 저장되고 만료일이 설정된다")
     @Test
     void issue_success() {
-        CouponDto.CouponIssueInfo result = couponApplicationService.issue(userId, couponId);
+        CouponDto.CouponIssueInfo result = couponFacade.issue(userId, couponId);
 
         assertThat(result.id()).isNotNull();
         assertThat(result.userId()).isEqualTo(userId);
@@ -196,12 +196,12 @@ class CouponApplicationServiceIntegrationTest {
     @DisplayName("issue: 이미 발급된 쿠폰을 재요청하면 기존 발급 내역을 반환한다 (멱등)")
     @Test
     void issue_idempotent_whenAlreadyIssued() {
-        CouponDto.CouponIssueInfo first = couponApplicationService.issue(userId, couponId);
-        CouponDto.CouponIssueInfo second = couponApplicationService.issue(userId, couponId);
+        CouponDto.CouponIssueInfo first = couponFacade.issue(userId, couponId);
+        CouponDto.CouponIssueInfo second = couponFacade.issue(userId, couponId);
 
         assertThat(second.id()).isEqualTo(first.id());
 
-        Page<CouponDto.CouponIssueInfo> issues = couponApplicationService.getIssues(couponId, PageRequest.of(0, 10));
+        Page<CouponDto.CouponIssueInfo> issues = couponFacade.getIssues(couponId, PageRequest.of(0, 10));
         assertThat(issues.getTotalElements()).isEqualTo(1);
     }
 
@@ -222,7 +222,7 @@ class CouponApplicationServiceIntegrationTest {
                 ready.countDown();
                 try {
                     start.await();
-                    CouponDto.CouponIssueInfo issued = couponApplicationService.issue(userId, couponId);
+                    CouponDto.CouponIssueInfo issued = couponFacade.issue(userId, couponId);
                     issueIds.add(issued.id());
                 } catch (Throwable t) {
                     failures.add(t);
@@ -244,14 +244,14 @@ class CouponApplicationServiceIntegrationTest {
         assertThat(issueIds).doesNotContainNull();
         assertThat(Set.copyOf(issueIds)).hasSize(1);
 
-        Page<CouponDto.CouponIssueInfo> issues = couponApplicationService.getIssues(couponId, PageRequest.of(0, 10));
+        Page<CouponDto.CouponIssueInfo> issues = couponFacade.getIssues(couponId, PageRequest.of(0, 10));
         assertThat(issues.getTotalElements()).isEqualTo(1);
     }
 
     @DisplayName("issue: 존재하지 않는 사용자로 발급 요청 시 예외가 발생한다")
     @Test
     void issue_fail_userNotFound() {
-        assertThatThrownBy(() -> couponApplicationService.issue(9999L, couponId))
+        assertThatThrownBy(() -> couponFacade.issue(9999L, couponId))
             .isInstanceOf(CoreException.class)
             .satisfies(e -> assertThat(((CoreException) e).getErrorType())
                 .isEqualTo(ErrorType.USER_NOT_FOUND));
@@ -260,7 +260,7 @@ class CouponApplicationServiceIntegrationTest {
     @DisplayName("issue: 존재하지 않는 쿠폰으로 발급 요청 시 예외가 발생한다")
     @Test
     void issue_fail_couponNotFound() {
-        assertThatThrownBy(() -> couponApplicationService.issue(userId, 9999L))
+        assertThatThrownBy(() -> couponFacade.issue(userId, 9999L))
             .isInstanceOf(CoreException.class)
             .satisfies(e -> assertThat(((CoreException) e).getErrorType())
                 .isEqualTo(ErrorType.COUPON_NOT_FOUND));
@@ -273,9 +273,9 @@ class CouponApplicationServiceIntegrationTest {
     @DisplayName("getMyCoupons: 발급된 쿠폰이 내 쿠폰 목록에 포함된다")
     @Test
     void getMyCoupons_success() {
-        couponApplicationService.issue(userId, couponId);
+        couponFacade.issue(userId, couponId);
 
-        Page<CouponDto.MyCouponInfo> result = couponApplicationService.getMyCoupons(userId, PageRequest.of(0, 10));
+        Page<CouponDto.MyCouponInfo> result = couponFacade.getMyCoupons(userId, PageRequest.of(0, 10));
 
         assertThat(result.getTotalElements()).isEqualTo(1);
         assertThat(result.getContent().getFirst().couponId()).isEqualTo(couponId);
@@ -286,7 +286,7 @@ class CouponApplicationServiceIntegrationTest {
     @DisplayName("getMyCoupons: 쿠폰이 없으면 빈 목록을 반환한다")
     @Test
     void getMyCoupons_empty() {
-        Page<CouponDto.MyCouponInfo> result = couponApplicationService.getMyCoupons(userId, PageRequest.of(0, 10));
+        Page<CouponDto.MyCouponInfo> result = couponFacade.getMyCoupons(userId, PageRequest.of(0, 10));
 
         assertThat(result.getTotalElements()).isZero();
     }
@@ -294,7 +294,7 @@ class CouponApplicationServiceIntegrationTest {
     @DisplayName("getMyCoupons: 존재하지 않는 사용자 조회 시 예외가 발생한다")
     @Test
     void getMyCoupons_fail_userNotFound() {
-        assertThatThrownBy(() -> couponApplicationService.getMyCoupons(9999L, PageRequest.of(0, 10)))
+        assertThatThrownBy(() -> couponFacade.getMyCoupons(9999L, PageRequest.of(0, 10)))
             .isInstanceOf(CoreException.class)
             .satisfies(e -> assertThat(((CoreException) e).getErrorType())
                 .isEqualTo(ErrorType.USER_NOT_FOUND));

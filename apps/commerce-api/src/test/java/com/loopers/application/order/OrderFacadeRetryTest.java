@@ -5,7 +5,7 @@ import com.loopers.domain.coupon.CouponIssue;
 import com.loopers.domain.coupon.CouponIssueRepository;
 import com.loopers.domain.coupon.CouponRepository;
 import com.loopers.domain.order.Order;
-import com.loopers.domain.order.OrderDomainService;
+import com.loopers.domain.order.OrderService;
 import com.loopers.domain.order.OrderRepository;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductRepository;
@@ -32,8 +32,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@SpringJUnitConfig(classes = OrderApplicationServiceRetryTest.TestConfig.class)
-class OrderApplicationServiceRetryTest {
+@SpringJUnitConfig(classes = OrderFacadeRetryTest.TestConfig.class)
+class OrderFacadeRetryTest {
 
     @Configuration
     @EnableRetry
@@ -64,27 +64,27 @@ class OrderApplicationServiceRetryTest {
         }
 
         @Bean
-        OrderDomainService orderDomainService() {
-            return new OrderDomainService();
+        OrderService orderService() {
+            return new OrderService();
         }
 
         @Bean
-        OrderApplicationService orderApplicationService(
+        OrderFacade orderFacade(
             OrderRepository orderRepository,
             ProductRepository productRepository,
             UserRepository userRepository,
             CouponRepository couponRepository,
             CouponIssueRepository couponIssueRepository,
-            OrderDomainService orderDomainService,
+            OrderService orderService,
             OrderPlacementTxService orderPlacementTxService
         ) {
-            return new OrderApplicationService(
+            return new OrderFacade(
                 orderRepository,
                 productRepository,
                 userRepository,
                 couponRepository,
                 couponIssueRepository,
-                orderDomainService,
+                orderService,
                 orderPlacementTxService
             );
         }
@@ -95,20 +95,20 @@ class OrderApplicationServiceRetryTest {
             ProductRepository productRepository,
             CouponRepository couponRepository,
             CouponIssueRepository couponIssueRepository,
-            OrderDomainService orderDomainService
+            OrderService orderService
         ) {
             return new OrderPlacementTxService(
                 orderRepository,
                 productRepository,
                 couponRepository,
                 couponIssueRepository,
-                orderDomainService
+                orderService
             );
         }
     }
 
     @jakarta.annotation.Resource
-    private OrderApplicationService orderApplicationService;
+    private OrderFacade orderFacade;
 
     @jakarta.annotation.Resource
     private OrderRepository orderRepository;
@@ -150,7 +150,7 @@ class OrderApplicationServiceRetryTest {
             .thenThrow(new ObjectOptimisticLockingFailureException(Order.class, 1L))
             .thenAnswer(invocation -> invocation.getArgument(0));
 
-        OrderDto.OrderInfo result = orderApplicationService.placeOrder(
+        OrderDto.OrderInfo result = orderFacade.placeOrder(
             userId,
             List.of(new OrderDto.OrderLineCommand(productId, 1)),
             null
@@ -195,7 +195,7 @@ class OrderApplicationServiceRetryTest {
         when(coupon.calculateDiscount(any())).thenReturn(BigDecimal.ZERO);
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertThatThrownBy(() -> orderApplicationService.placeOrder(
+        assertThatThrownBy(() -> orderFacade.placeOrder(
             userId,
             List.of(new OrderDto.OrderLineCommand(productId, 1)),
             couponIssueId

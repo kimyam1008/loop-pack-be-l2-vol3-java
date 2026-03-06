@@ -6,7 +6,7 @@ import com.loopers.domain.coupon.CouponIssueRepository;
 import com.loopers.domain.coupon.CouponRepository;
 import com.loopers.domain.coupon.exception.CouponNotAvailableException;
 import com.loopers.domain.order.Order;
-import com.loopers.domain.order.OrderDomainService;
+import com.loopers.domain.order.OrderService;
 import com.loopers.domain.order.OrderItem;
 import com.loopers.domain.order.OrderRepository;
 import com.loopers.domain.order.exception.EmptyOrderItemException;
@@ -37,7 +37,7 @@ public class OrderPlacementTxService {
     private final ProductRepository productRepository;
     private final CouponRepository couponRepository;
     private final CouponIssueRepository couponIssueRepository;
-    private final OrderDomainService orderDomainService;
+    private final OrderService orderService;
 
     @Transactional
     public OrderDto.OrderInfo placeOrder(Long userId, List<OrderDto.OrderLineCommand> items, Long couponIssueId) {
@@ -81,7 +81,7 @@ public class OrderPlacementTxService {
 
         Order order;
         try {
-            order = orderDomainService.createOrder(userId, orderItems);
+            order = orderService.createOrder(userId, orderItems);
         } catch (EmptyOrderItemException e) {
             throw new CoreException(ErrorType.ORDER_EMPTY_ITEMS);
         }

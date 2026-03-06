@@ -1,8 +1,8 @@
 package com.loopers.application.order;
 
-import com.loopers.application.coupon.CouponApplicationService;
+import com.loopers.application.coupon.CouponFacade;
 import com.loopers.application.coupon.CouponDto;
-import com.loopers.application.user.UserApplicationService;
+import com.loopers.application.user.UserFacade;
 import com.loopers.application.user.UserDto;
 import com.loopers.domain.brand.Brand;
 import com.loopers.domain.brand.BrandDescription;
@@ -39,16 +39,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
-class OrderApplicationServiceIntegrationTest {
+class OrderFacadeIntegrationTest {
 
     @Autowired
-    private OrderApplicationService orderApplicationService;
+    private OrderFacade orderFacade;
 
     @Autowired
-    private UserApplicationService userApplicationService;
+    private UserFacade userFacade;
 
     @Autowired
-    private CouponApplicationService couponApplicationService;
+    private CouponFacade couponFacade;
 
     @Autowired
     private BrandJpaRepository brandJpaRepository;
@@ -67,7 +67,7 @@ class OrderApplicationServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        UserDto.UserInfo user = userApplicationService.register(
+        UserDto.UserInfo user = userFacade.register(
             "orderuser1", "TestPass1!", "주문테스터",
             LocalDate.of(2000, 1, 1), "order1@loopers.com", Gender.MALE
         );
@@ -91,7 +91,7 @@ class OrderApplicationServiceIntegrationTest {
     @DisplayName("주문 생성 시 재고가 차감되고 스냅샷 정보가 저장된다")
     @Test
     void placeOrder_success() {
-        OrderDto.OrderInfo result = orderApplicationService.placeOrder(
+        OrderDto.OrderInfo result = orderFacade.placeOrder(
             userId,
             List.of(new OrderDto.OrderLineCommand(productId, 2)),
             null
@@ -111,7 +111,7 @@ class OrderApplicationServiceIntegrationTest {
     @Test
     void placeOrder_fail_notEnoughStock() {
         assertThatThrownBy(() ->
-            orderApplicationService.placeOrder(
+            orderFacade.placeOrder(
                 userId,
                 List.of(new OrderDto.OrderLineCommand(productId, 6)),
                 null
@@ -128,13 +128,13 @@ class OrderApplicationServiceIntegrationTest {
     @DisplayName("사용자 주문 상세 조회 시 본인 주문을 조회할 수 있다")
     @Test
     void getOrder_success() {
-        OrderDto.OrderInfo created = orderApplicationService.placeOrder(
+        OrderDto.OrderInfo created = orderFacade.placeOrder(
             userId,
             List.of(new OrderDto.OrderLineCommand(productId, 1)),
             null
         );
 
-        OrderDto.OrderInfo found = orderApplicationService.getOrder(userId, created.id());
+        OrderDto.OrderInfo found = orderFacade.getOrder(userId, created.id());
 
         assertThat(found.id()).isEqualTo(created.id());
         assertThat(found.items()).hasSize(1);
@@ -144,7 +144,7 @@ class OrderApplicationServiceIntegrationTest {
     @DisplayName("존재하지 않는 주문 상세 조회 시 예외가 발생한다")
     @Test
     void getOrder_fail_notFound() {
-        assertThatThrownBy(() -> orderApplicationService.getOrder(userId, 9999L))
+        assertThatThrownBy(() -> orderFacade.getOrder(userId, 9999L))
             .isInstanceOf(CoreException.class)
             .satisfies(e -> assertThat(((CoreException) e).getErrorType())
                 .isEqualTo(ErrorType.ORDER_NOT_FOUND));
@@ -153,7 +153,7 @@ class OrderApplicationServiceIntegrationTest {
     @DisplayName("기간 내 주문 목록 조회가 가능하다")
     @Test
     void getOrders_success() {
-        orderApplicationService.placeOrder(
+        orderFacade.placeOrder(
             userId,
             List.of(new OrderDto.OrderLineCommand(productId, 1)),
             null
@@ -161,7 +161,7 @@ class OrderApplicationServiceIntegrationTest {
 
         ZonedDateTime startAt = ZonedDateTime.now().minusDays(1);
         ZonedDateTime endAt = ZonedDateTime.now().plusDays(1);
-        List<OrderDto.OrderInfo> orders = orderApplicationService.getOrders(userId, startAt, endAt);
+        List<OrderDto.OrderInfo> orders = orderFacade.getOrders(userId, startAt, endAt);
 
         assertThat(orders).hasSize(1);
     }
@@ -169,13 +169,13 @@ class OrderApplicationServiceIntegrationTest {
     @DisplayName("주문 취소 시 상태가 CANCELLED로 변경되고 재고가 복구된다")
     @Test
     void cancelOrder_success() {
-        OrderDto.OrderInfo created = orderApplicationService.placeOrder(
+        OrderDto.OrderInfo created = orderFacade.placeOrder(
             userId,
             List.of(new OrderDto.OrderLineCommand(productId, 2)),
             null
         );
 
-        OrderDto.OrderInfo cancelled = orderApplicationService.cancelOrder(userId, created.id());
+        OrderDto.OrderInfo cancelled = orderFacade.cancelOrder(userId, created.id());
 
         assertThat(cancelled.status()).isEqualTo(OrderStatus.CANCELLED);
         Product product = productRepository.findById(productId).orElseThrow();
@@ -185,14 +185,14 @@ class OrderApplicationServiceIntegrationTest {
     @DisplayName("이미 취소된 주문을 다시 취소해도 멱등하게 성공한다")
     @Test
     void cancelOrder_idempotent() {
-        OrderDto.OrderInfo created = orderApplicationService.placeOrder(
+        OrderDto.OrderInfo created = orderFacade.placeOrder(
             userId,
             List.of(new OrderDto.OrderLineCommand(productId, 1)),
             null
         );
-        orderApplicationService.cancelOrder(userId, created.id());
+        orderFacade.cancelOrder(userId, created.id());
 
-        OrderDto.OrderInfo cancelledAgain = orderApplicationService.cancelOrder(userId, created.id());
+        OrderDto.OrderInfo cancelledAgain = orderFacade.cancelOrder(userId, created.id());
 
         assertThat(cancelledAgain.status()).isEqualTo(OrderStatus.CANCELLED);
         Product product = productRepository.findById(productId).orElseThrow();
@@ -215,7 +215,7 @@ class OrderApplicationServiceIntegrationTest {
                 ready.countDown();
                 try {
                     start.await();
-                    orderApplicationService.placeOrder(
+                    orderFacade.placeOrder(
                         userId,
                         List.of(new OrderDto.OrderLineCommand(productId, 1)),
                         null
@@ -242,11 +242,11 @@ class OrderApplicationServiceIntegrationTest {
     @DisplayName("동일한 쿠폰으로 동시에 주문해도 쿠폰은 단 한 번만 사용된다")
     @Test
     void placeOrder_concurrent_couponUsedOnce() throws InterruptedException {
-        CouponDto.CouponInfo template = couponApplicationService.registerTemplate(
+        CouponDto.CouponInfo template = couponFacade.registerTemplate(
             "동시주문쿠폰", null, CouponType.FIXED,
             BigDecimal.valueOf(1000), ZonedDateTime.now().plusDays(30)
         );
-        CouponDto.CouponIssueInfo issued = couponApplicationService.issue(userId, template.id());
+        CouponDto.CouponIssueInfo issued = couponFacade.issue(userId, template.id());
         Long couponIssueId = issued.id();
 
         int concurrency = 5;
@@ -262,7 +262,7 @@ class OrderApplicationServiceIntegrationTest {
                 ready.countDown();
                 try {
                     start.await();
-                    OrderDto.OrderInfo order = orderApplicationService.placeOrder(
+                    OrderDto.OrderInfo order = orderFacade.placeOrder(
                         userId,
                         List.of(new OrderDto.OrderLineCommand(productId, 1)),
                         couponIssueId

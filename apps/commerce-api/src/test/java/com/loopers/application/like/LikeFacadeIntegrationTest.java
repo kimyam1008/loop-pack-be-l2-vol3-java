@@ -1,6 +1,6 @@
 package com.loopers.application.like;
 
-import com.loopers.application.user.UserApplicationService;
+import com.loopers.application.user.UserFacade;
 import com.loopers.application.user.UserDto;
 import com.loopers.domain.brand.Brand;
 import com.loopers.domain.brand.BrandDescription;
@@ -35,13 +35,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
-class LikeApplicationServiceIntegrationTest {
+class LikeFacadeIntegrationTest {
 
     @Autowired
-    private LikeApplicationService likeApplicationService;
+    private LikeFacade likeFacade;
 
     @Autowired
-    private UserApplicationService userApplicationService;
+    private UserFacade userFacade;
 
     @Autowired
     private BrandJpaRepository brandJpaRepository;
@@ -60,7 +60,7 @@ class LikeApplicationServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        UserDto.UserInfo user = userApplicationService.register(
+        UserDto.UserInfo user = userFacade.register(
             "testuser1", "TestPass1!", "테스터",
             LocalDate.of(2000, 1, 1), "test@loopers.com", Gender.MALE
         );
@@ -88,7 +88,7 @@ class LikeApplicationServiceIntegrationTest {
         @DisplayName("유저와 상품이 존재하면 좋아요 등록에 성공하고 상품의 likeCount가 1 증가한다")
         @Test
         void like_success() {
-            LikeDto.LikeInfo result = likeApplicationService.like(userId, productId);
+            LikeDto.LikeInfo result = likeFacade.like(userId, productId);
 
             assertThat(result.userId()).isEqualTo(userId);
             assertThat(result.productId()).isEqualTo(productId);
@@ -100,8 +100,8 @@ class LikeApplicationServiceIntegrationTest {
         @DisplayName("같은 상품에 두 번 좋아요를 눌러도 멱등하게 성공한다")
         @Test
         void like_idempotent_whenDuplicateRequest() {
-            likeApplicationService.like(userId, productId);
-            LikeDto.LikeInfo second = likeApplicationService.like(userId, productId);
+            likeFacade.like(userId, productId);
+            LikeDto.LikeInfo second = likeFacade.like(userId, productId);
 
             assertThat(second.userId()).isEqualTo(userId);
             assertThat(second.productId()).isEqualTo(productId);
@@ -112,7 +112,7 @@ class LikeApplicationServiceIntegrationTest {
         @DisplayName("존재하지 않는 유저 ID로 좋아요를 누르면 예외가 발생한다")
         @Test
         void like_fail_userNotFound() {
-            assertThatThrownBy(() -> likeApplicationService.like(999L, productId))
+            assertThatThrownBy(() -> likeFacade.like(999L, productId))
                 .isInstanceOf(CoreException.class)
                 .satisfies(e -> assertThat(((CoreException) e).getErrorType())
                     .isEqualTo(ErrorType.USER_NOT_FOUND));
@@ -121,7 +121,7 @@ class LikeApplicationServiceIntegrationTest {
         @DisplayName("존재하지 않는 상품 ID로 좋아요를 누르면 예외가 발생한다")
         @Test
         void like_fail_productNotFound() {
-            assertThatThrownBy(() -> likeApplicationService.like(userId, 999L))
+            assertThatThrownBy(() -> likeFacade.like(userId, 999L))
                 .isInstanceOf(CoreException.class)
                 .satisfies(e -> assertThat(((CoreException) e).getErrorType())
                     .isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
@@ -135,9 +135,9 @@ class LikeApplicationServiceIntegrationTest {
         @DisplayName("좋아요가 존재하면 취소에 성공하고 상품의 likeCount가 0으로 돌아온다")
         @Test
         void unlike_success() {
-            likeApplicationService.like(userId, productId);
+            likeFacade.like(userId, productId);
 
-            likeApplicationService.unlike(userId, productId);
+            likeFacade.unlike(userId, productId);
 
             Product product = productRepository.findById(productId).orElseThrow();
             assertThat(product.getLikeCount()).isZero();
@@ -146,7 +146,7 @@ class LikeApplicationServiceIntegrationTest {
         @DisplayName("좋아요 기록이 없어도 멱등하게 성공한다")
         @Test
         void unlike_idempotent_whenLikeNotFound() {
-            likeApplicationService.unlike(userId, productId);
+            likeFacade.unlike(userId, productId);
 
             Product product = productRepository.findById(productId).orElseThrow();
             assertThat(product.getLikeCount()).isZero();
@@ -155,7 +155,7 @@ class LikeApplicationServiceIntegrationTest {
         @DisplayName("존재하지 않는 상품 ID로 취소를 시도하면 예외가 발생한다")
         @Test
         void unlike_fail_productNotFound() {
-            assertThatThrownBy(() -> likeApplicationService.unlike(userId, 999L))
+            assertThatThrownBy(() -> likeFacade.unlike(userId, 999L))
                 .isInstanceOf(CoreException.class)
                 .satisfies(e -> assertThat(((CoreException) e).getErrorType())
                     .isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
@@ -165,10 +165,10 @@ class LikeApplicationServiceIntegrationTest {
     @DisplayName("좋아요 취소 후 다시 좋아요를 등록할 수 있다")
     @Test
     void like_after_unlike_success() {
-        likeApplicationService.like(userId, productId);
-        likeApplicationService.unlike(userId, productId);
+        likeFacade.like(userId, productId);
+        likeFacade.unlike(userId, productId);
 
-        likeApplicationService.like(userId, productId);
+        likeFacade.like(userId, productId);
 
         Product product = productRepository.findById(productId).orElseThrow();
         assertThat(product.getLikeCount()).isEqualTo(1);
@@ -180,7 +180,7 @@ class LikeApplicationServiceIntegrationTest {
         int concurrency = 3;
         List<Long> userIds = new ArrayList<>();
         for (int i = 0; i < concurrency; i++) {
-            UserDto.UserInfo u = userApplicationService.register(
+            UserDto.UserInfo u = userFacade.register(
                 "likeuser" + i, "TestPass1!", "좋아요유저" + i,
                 LocalDate.of(2000, 1, 1), "like" + i + "@loopers.com", Gender.MALE
             );
@@ -199,7 +199,7 @@ class LikeApplicationServiceIntegrationTest {
                 ready.countDown();
                 try {
                     start.await();
-                    likeApplicationService.like(uid, productId);
+                    likeFacade.like(uid, productId);
                 } catch (Throwable t) {
                     failures.add(t);
                 } finally {

@@ -3,7 +3,7 @@ package com.loopers.application.order;
 import com.loopers.domain.coupon.CouponIssueRepository;
 import com.loopers.domain.coupon.CouponRepository;
 import com.loopers.domain.order.Order;
-import com.loopers.domain.order.OrderDomainService;
+import com.loopers.domain.order.OrderService;
 import com.loopers.domain.order.OrderRepository;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductRepository;
@@ -28,14 +28,14 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-public class OrderApplicationService {
+public class OrderFacade {
 
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final CouponRepository couponRepository;
     private final CouponIssueRepository couponIssueRepository;
-    private final OrderDomainService orderDomainService;
+    private final OrderService orderService;
     private final OrderPlacementTxService orderPlacementTxService;
 
     @Retryable(
@@ -81,7 +81,7 @@ public class OrderApplicationService {
             touchedProducts.put(product.getId(), product);
         }
 
-        if (!orderDomainService.cancelOrder(order)) {
+        if (!orderService.cancelOrder(order)) {
             return OrderDto.OrderInfo.from(order);
         }
 

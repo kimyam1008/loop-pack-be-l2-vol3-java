@@ -1,7 +1,7 @@
 package com.loopers.application.coupon;
 
 import com.loopers.domain.coupon.Coupon;
-import com.loopers.domain.coupon.CouponDomainService;
+import com.loopers.domain.coupon.CouponService;
 import com.loopers.domain.coupon.CouponIssue;
 import com.loopers.domain.coupon.CouponIssueRepository;
 import com.loopers.domain.coupon.CouponRepository;
@@ -25,12 +25,12 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class CouponApplicationService {
+public class CouponFacade {
 
     private final CouponRepository couponRepository;
     private final CouponIssueRepository couponIssueRepository;
     private final UserRepository userRepository;
-    private final CouponDomainService couponDomainService;
+    private final CouponService couponService;
 
     // ─────────────────────────────────────────
     // Admin: 쿠폰 템플릿 관리
@@ -94,7 +94,7 @@ public class CouponApplicationService {
         Coupon coupon = couponRepository.findById(couponId)
             .orElseThrow(() -> new CoreException(ErrorType.COUPON_NOT_FOUND));
 
-        CouponIssue issue = couponDomainService.createIssue(couponId, userId, coupon.getExpiredAt());
+        CouponIssue issue = couponService.createIssue(couponId, userId, coupon.getExpiredAt());
         try {
             return CouponDto.CouponIssueInfo.from(couponIssueRepository.save(issue));
         } catch (DataIntegrityViolationException e) {
