@@ -45,7 +45,7 @@ public class LikeApplicationService {
             DataIntegrityViolationException.class
         },
         maxAttempts = 3,
-        backoff = @Backoff(delay = 30)
+        backoff = @Backoff(delay = 100, multiplier = 2.0)
     )
     public LikeDto.LikeInfo like(Long userId, Long productId) {
         return likeWithStatus(userId, productId).like();
@@ -59,7 +59,7 @@ public class LikeApplicationService {
             DataIntegrityViolationException.class
         },
         maxAttempts = 3,
-        backoff = @Backoff(delay = 30)
+        backoff = @Backoff(delay = 100, multiplier = 2.0)
     )
     public LikeDto.LikeResult likeWithStatus(Long userId, Long productId) {
         userRepository.findById(userId)
@@ -90,7 +90,7 @@ public class LikeApplicationService {
             OptimisticLockException.class
         },
         maxAttempts = 3,
-        backoff = @Backoff(delay = 30)
+        backoff = @Backoff(delay = 100, multiplier = 2.0)
     )
     public void unlike(Long userId, Long productId) {
         userRepository.findById(userId)
