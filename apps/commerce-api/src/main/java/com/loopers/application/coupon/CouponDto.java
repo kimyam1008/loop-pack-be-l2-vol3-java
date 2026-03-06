@@ -16,7 +16,7 @@ public class CouponDto {
         String description,
         CouponType type,
         BigDecimal discountValue,
-        int validDays,
+        ZonedDateTime expiredAt,
         ZonedDateTime createdAt
     ) {
         public static CouponInfo from(Coupon coupon) {
@@ -26,7 +26,7 @@ public class CouponDto {
                 coupon.getDescription(),
                 coupon.getType(),
                 coupon.getDiscountValue(),
-                coupon.getValidDays(),
+                coupon.getExpiredAt(),
                 coupon.getCreatedAt()
             );
         }

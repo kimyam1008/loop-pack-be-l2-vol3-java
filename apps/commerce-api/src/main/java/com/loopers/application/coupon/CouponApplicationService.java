@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -36,8 +37,8 @@ public class CouponApplicationService {
     // ─────────────────────────────────────────
 
     @Transactional
-    public CouponDto.CouponInfo registerTemplate(String name, String description, CouponType type, BigDecimal discountValue, int validDays) {
-        Coupon coupon = Coupon.create(name, description, type, discountValue, validDays);
+    public CouponDto.CouponInfo registerTemplate(String name, String description, CouponType type, BigDecimal discountValue, ZonedDateTime expiredAt) {
+        Coupon coupon = Coupon.create(name, description, type, discountValue, expiredAt);
         return CouponDto.CouponInfo.from(couponRepository.save(coupon));
     }
 
@@ -55,10 +56,10 @@ public class CouponApplicationService {
     }
 
     @Transactional
-    public CouponDto.CouponInfo updateTemplate(Long couponId, String name, String description, CouponType type, BigDecimal discountValue, int validDays) {
+    public CouponDto.CouponInfo updateTemplate(Long couponId, String name, String description, CouponType type, BigDecimal discountValue, ZonedDateTime expiredAt) {
         Coupon coupon = couponRepository.findById(couponId)
             .orElseThrow(() -> new CoreException(ErrorType.COUPON_NOT_FOUND));
-        coupon.update(name, description, type, discountValue, validDays);
+        coupon.update(name, description, type, discountValue, expiredAt);
         return CouponDto.CouponInfo.from(couponRepository.save(coupon));
     }
 
@@ -93,7 +94,7 @@ public class CouponApplicationService {
         Coupon coupon = couponRepository.findById(couponId)
             .orElseThrow(() -> new CoreException(ErrorType.COUPON_NOT_FOUND));
 
-        CouponIssue issue = couponDomainService.createIssue(couponId, userId, coupon.getValidDays());
+        CouponIssue issue = couponDomainService.createIssue(couponId, userId, coupon.getExpiredAt());
         try {
             return CouponDto.CouponIssueInfo.from(couponIssueRepository.save(issue));
         } catch (DataIntegrityViolationException e) {

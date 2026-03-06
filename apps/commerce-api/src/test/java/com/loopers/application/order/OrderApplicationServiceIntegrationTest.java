@@ -1,10 +1,13 @@
 package com.loopers.application.order;
 
+import com.loopers.application.coupon.CouponApplicationService;
+import com.loopers.application.coupon.CouponDto;
 import com.loopers.application.user.UserApplicationService;
 import com.loopers.application.user.UserDto;
 import com.loopers.domain.brand.Brand;
 import com.loopers.domain.brand.BrandDescription;
 import com.loopers.domain.brand.BrandName;
+import com.loopers.domain.coupon.CouponType;
 import com.loopers.domain.order.OrderStatus;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
@@ -24,7 +27,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -37,6 +46,9 @@ class OrderApplicationServiceIntegrationTest {
 
     @Autowired
     private UserApplicationService userApplicationService;
+
+    @Autowired
+    private CouponApplicationService couponApplicationService;
 
     @Autowired
     private BrandJpaRepository brandJpaRepository;
@@ -185,5 +197,98 @@ class OrderApplicationServiceIntegrationTest {
         assertThat(cancelledAgain.status()).isEqualTo(OrderStatus.CANCELLED);
         Product product = productRepository.findById(productId).orElseThrow();
         assertThat(product.getStock()).isEqualTo(5);
+    }
+
+    @DisplayName("동일한 상품에 여러 주문이 동시에 요청되어도 재고가 정상적으로 차감된다")
+    @Test
+    void placeOrder_concurrent_stockDeduction() throws InterruptedException {
+        int concurrency = 3;
+
+        ExecutorService executor = Executors.newFixedThreadPool(concurrency);
+        CountDownLatch ready = new CountDownLatch(concurrency);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(concurrency);
+        List<Throwable> failures = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < concurrency; i++) {
+            executor.submit(() -> {
+                ready.countDown();
+                try {
+                    start.await();
+                    orderApplicationService.placeOrder(
+                        userId,
+                        List.of(new OrderDto.OrderLineCommand(productId, 1)),
+                        null
+                    );
+                } catch (Throwable t) {
+                    failures.add(t);
+                } finally {
+                    done.countDown();
+                }
+            });
+        }
+
+        assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+        start.countDown();
+        assertThat(done.await(15, TimeUnit.SECONDS)).isTrue();
+        executor.shutdown();
+        assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+
+        assertThat(failures).isEmpty();
+        Product product = productRepository.findById(productId).orElseThrow();
+        assertThat(product.getStock()).isEqualTo(5 - concurrency);
+    }
+
+    @DisplayName("동일한 쿠폰으로 동시에 주문해도 쿠폰은 단 한 번만 사용된다")
+    @Test
+    void placeOrder_concurrent_couponUsedOnce() throws InterruptedException {
+        CouponDto.CouponInfo template = couponApplicationService.registerTemplate(
+            "동시주문쿠폰", null, CouponType.FIXED,
+            BigDecimal.valueOf(1000), ZonedDateTime.now().plusDays(30)
+        );
+        CouponDto.CouponIssueInfo issued = couponApplicationService.issue(userId, template.id());
+        Long couponIssueId = issued.id();
+
+        int concurrency = 5;
+        ExecutorService executor = Executors.newFixedThreadPool(concurrency);
+        CountDownLatch ready = new CountDownLatch(concurrency);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(concurrency);
+        List<Long> successIds = Collections.synchronizedList(new ArrayList<>());
+        List<Throwable> failures = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < concurrency; i++) {
+            executor.submit(() -> {
+                ready.countDown();
+                try {
+                    start.await();
+                    OrderDto.OrderInfo order = orderApplicationService.placeOrder(
+                        userId,
+                        List.of(new OrderDto.OrderLineCommand(productId, 1)),
+                        couponIssueId
+                    );
+                    successIds.add(order.id());
+                } catch (Throwable t) {
+                    failures.add(t);
+                } finally {
+                    done.countDown();
+                }
+            });
+        }
+
+        assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+        start.countDown();
+        assertThat(done.await(15, TimeUnit.SECONDS)).isTrue();
+        executor.shutdown();
+        assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+
+        assertThat(successIds).hasSize(1);
+        assertThat(failures).hasSize(concurrency - 1);
+        assertThat(failures).allSatisfy(t ->
+            assertThat(t)
+                .isInstanceOf(CoreException.class)
+                .satisfies(e -> assertThat(((CoreException) e).getErrorType())
+                    .isEqualTo(ErrorType.COUPON_NOT_AVAILABLE))
+        );
     }
 }

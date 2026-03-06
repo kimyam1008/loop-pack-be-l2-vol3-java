@@ -4,7 +4,6 @@ import com.loopers.application.coupon.CouponDto;
 import com.loopers.domain.coupon.CouponIssueStatus;
 import com.loopers.domain.coupon.CouponType;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.data.domain.Page;
@@ -32,8 +31,8 @@ public class CouponV1Dto {
         @DecimalMin(value = "0.01", message = "할인 값은 0보다 커야 합니다.")
         BigDecimal discountValue,
 
-        @Min(value = 1, message = "유효 기간은 1일 이상이어야 합니다.")
-        int validDays
+        @NotNull(message = "만료일은 필수입니다.")
+        ZonedDateTime expiredAt
     ) {
     }
 
@@ -50,8 +49,8 @@ public class CouponV1Dto {
         @DecimalMin(value = "0.01", message = "할인 값은 0보다 커야 합니다.")
         BigDecimal discountValue,
 
-        @Min(value = 1, message = "유효 기간은 1일 이상이어야 합니다.")
-        int validDays
+        @NotNull(message = "만료일은 필수입니다.")
+        ZonedDateTime expiredAt
     ) {
     }
 
@@ -65,7 +64,7 @@ public class CouponV1Dto {
         String description,
         CouponType type,
         BigDecimal discountValue,
-        int validDays,
+        ZonedDateTime expiredAt,
         ZonedDateTime createdAt
     ) {
         public static CouponTemplateResponse from(CouponDto.CouponInfo info) {
@@ -75,7 +74,7 @@ public class CouponV1Dto {
                 info.description(),
                 info.type(),
                 info.discountValue(),
-                info.validDays(),
+                info.expiredAt(),
                 info.createdAt()
             );
         }
@@ -145,18 +144,24 @@ public class CouponV1Dto {
         String couponName,
         CouponType couponType,
         BigDecimal discountValue,
-        CouponIssueStatus status,
+        CouponDisplayStatus status,
         ZonedDateTime expiredAt,
         ZonedDateTime usedAt
     ) {
         public static MyCouponResponse from(CouponDto.MyCouponInfo info) {
+            CouponDisplayStatus displayStatus = info.status() == CouponIssueStatus.USED
+                ? CouponDisplayStatus.USED
+                : info.expiredAt().isBefore(java.time.ZonedDateTime.now())
+                    ? CouponDisplayStatus.EXPIRED
+                    : CouponDisplayStatus.AVAILABLE;
+
             return new MyCouponResponse(
                 info.id(),
                 info.couponId(),
                 info.couponName(),
                 info.couponType(),
                 info.discountValue(),
-                info.status(),
+                displayStatus,
                 info.expiredAt(),
                 info.usedAt()
             );

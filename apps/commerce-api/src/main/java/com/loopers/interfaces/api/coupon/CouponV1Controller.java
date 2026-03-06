@@ -44,7 +44,7 @@ public class CouponV1Controller {
                     request.description(),
                     request.type(),
                     request.discountValue(),
-                    request.validDays()
+                    request.expiredAt()
                 )
             ));
         } catch (IllegalArgumentException e) {
@@ -65,7 +65,7 @@ public class CouponV1Controller {
                     request.description(),
                     request.type(),
                     request.discountValue(),
-                    request.validDays()
+                    request.expiredAt()
                 )
             ));
         } catch (IllegalArgumentException e) {

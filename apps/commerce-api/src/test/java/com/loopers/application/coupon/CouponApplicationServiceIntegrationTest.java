@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Set;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZonedDateTime;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -55,7 +56,7 @@ class CouponApplicationServiceIntegrationTest {
         userId = user.id();
 
         CouponDto.CouponInfo coupon = couponApplicationService.registerTemplate(
-            "신규 가입 쿠폰", "가입 혜택", CouponType.FIXED, BigDecimal.valueOf(5000), 30
+            "신규 가입 쿠폰", "가입 혜택", CouponType.FIXED, BigDecimal.valueOf(5000), ZonedDateTime.now().plusDays(30)
         );
         couponId = coupon.id();
     }
@@ -73,14 +74,14 @@ class CouponApplicationServiceIntegrationTest {
     @Test
     void registerTemplate_success() {
         CouponDto.CouponInfo result = couponApplicationService.registerTemplate(
-            "여름 할인 쿠폰", "여름 이벤트", CouponType.RATE, BigDecimal.valueOf(10), 7
+            "여름 할인 쿠폰", "여름 이벤트", CouponType.RATE, BigDecimal.valueOf(10), ZonedDateTime.now().plusDays(7)
         );
 
         assertThat(result.id()).isNotNull();
         assertThat(result.name()).isEqualTo("여름 할인 쿠폰");
         assertThat(result.type()).isEqualTo(CouponType.RATE);
         assertThat(result.discountValue()).isEqualByComparingTo("10");
-        assertThat(result.validDays()).isEqualTo(7);
+        assertThat(result.expiredAt()).isAfter(ZonedDateTime.now());
     }
 
     // ─────────────────────────────────────────
@@ -124,13 +125,13 @@ class CouponApplicationServiceIntegrationTest {
     @Test
     void updateTemplate_success() {
         CouponDto.CouponInfo result = couponApplicationService.updateTemplate(
-            couponId, "수정된 쿠폰", "수정된 설명", CouponType.RATE, BigDecimal.valueOf(15), 14
+            couponId, "수정된 쿠폰", "수정된 설명", CouponType.RATE, BigDecimal.valueOf(15), ZonedDateTime.now().plusDays(14)
         );
 
         assertThat(result.name()).isEqualTo("수정된 쿠폰");
         assertThat(result.type()).isEqualTo(CouponType.RATE);
         assertThat(result.discountValue()).isEqualByComparingTo("15");
-        assertThat(result.validDays()).isEqualTo(14);
+        assertThat(result.expiredAt()).isAfter(ZonedDateTime.now());
 
         CouponDto.CouponInfo reloaded = couponApplicationService.getTemplate(couponId);
         assertThat(reloaded.name()).isEqualTo("수정된 쿠폰");

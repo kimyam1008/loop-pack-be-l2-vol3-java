@@ -63,13 +63,13 @@ class CouponApplicationServiceTest {
         when(couponRepository.save(any(Coupon.class))).thenAnswer(i -> i.getArgument(0));
 
         CouponDto.CouponInfo result = couponApplicationService.registerTemplate(
-            "신규 가입 쿠폰", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), 30
+            "신규 가입 쿠폰", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), ZonedDateTime.now().plusDays(30)
         );
 
         assertThat(result.name()).isEqualTo("신규 가입 쿠폰");
         assertThat(result.type()).isEqualTo(CouponType.FIXED);
         assertThat(result.discountValue()).isEqualByComparingTo("5000");
-        assertThat(result.validDays()).isEqualTo(30);
+        assertThat(result.expiredAt()).isAfter(ZonedDateTime.now());
         verify(couponRepository).save(any(Coupon.class));
     }
 
@@ -78,7 +78,7 @@ class CouponApplicationServiceTest {
     void registerTemplate_fail_blankName() {
         assertThatThrownBy(() ->
             couponApplicationService.registerTemplate(
-                "", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), 30
+                "", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), ZonedDateTime.now().plusDays(30)
             )
         ).isInstanceOf(IllegalArgumentException.class);
 
@@ -92,7 +92,7 @@ class CouponApplicationServiceTest {
     @DisplayName("getTemplates: 쿠폰 템플릿 목록을 페이징으로 조회할 수 있다")
     @Test
     void getTemplates_success() {
-        Coupon coupon = Coupon.create("쿠폰A", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), 7);
+        Coupon coupon = Coupon.create("쿠폰A", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), ZonedDateTime.now().plusDays(7));
         PageRequest pageable = PageRequest.of(0, 10);
         when(couponRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(coupon)));
 
@@ -105,7 +105,7 @@ class CouponApplicationServiceTest {
     @DisplayName("getTemplate: 쿠폰 템플릿 상세를 조회할 수 있다")
     @Test
     void getTemplate_success() {
-        Coupon coupon = Coupon.create("쿠폰A", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), 7);
+        Coupon coupon = Coupon.create("쿠폰A", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), ZonedDateTime.now().plusDays(7));
         when(couponRepository.findById(1L)).thenReturn(Optional.of(coupon));
 
         CouponDto.CouponInfo result = couponApplicationService.getTemplate(1L);
@@ -131,12 +131,12 @@ class CouponApplicationServiceTest {
     @DisplayName("updateTemplate: 쿠폰 템플릿 정보를 수정할 수 있다")
     @Test
     void updateTemplate_success() {
-        Coupon coupon = Coupon.create("기존 쿠폰", "기존 설명", CouponType.FIXED, BigDecimal.valueOf(5000), 7);
+        Coupon coupon = Coupon.create("기존 쿠폰", "기존 설명", CouponType.FIXED, BigDecimal.valueOf(5000), ZonedDateTime.now().plusDays(7));
         when(couponRepository.findById(1L)).thenReturn(Optional.of(coupon));
         when(couponRepository.save(any(Coupon.class))).thenAnswer(i -> i.getArgument(0));
 
         CouponDto.CouponInfo result = couponApplicationService.updateTemplate(
-            1L, "수정된 쿠폰", "수정된 설명", CouponType.RATE, BigDecimal.valueOf(15), 14
+            1L, "수정된 쿠폰", "수정된 설명", CouponType.RATE, BigDecimal.valueOf(15), ZonedDateTime.now().plusDays(14)
         );
 
         assertThat(result.name()).isEqualTo("수정된 쿠폰");
@@ -151,7 +151,7 @@ class CouponApplicationServiceTest {
 
         assertThatThrownBy(() ->
             couponApplicationService.updateTemplate(
-                999L, "수정", "설명", CouponType.FIXED, BigDecimal.valueOf(1000), 7
+                999L, "수정", "설명", CouponType.FIXED, BigDecimal.valueOf(1000), ZonedDateTime.now().plusDays(7)
             )
         ).isInstanceOf(CoreException.class)
          .satisfies(e -> assertThat(((CoreException) e).getErrorType())
@@ -165,7 +165,7 @@ class CouponApplicationServiceTest {
     @DisplayName("deleteTemplate: 쿠폰 템플릿을 삭제할 수 있다")
     @Test
     void deleteTemplate_success() {
-        Coupon coupon = Coupon.create("쿠폰", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), 7);
+        Coupon coupon = Coupon.create("쿠폰", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), ZonedDateTime.now().plusDays(7));
         when(couponRepository.findById(1L)).thenReturn(Optional.of(coupon));
         when(couponRepository.save(any(Coupon.class))).thenAnswer(i -> i.getArgument(0));
 
@@ -193,7 +193,7 @@ class CouponApplicationServiceTest {
     @DisplayName("getIssues: 특정 쿠폰의 발급 내역을 페이징으로 조회할 수 있다")
     @Test
     void getIssues_success() {
-        Coupon coupon = Coupon.create("쿠폰", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), 7);
+        Coupon coupon = Coupon.create("쿠폰", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), ZonedDateTime.now().plusDays(7));
         CouponIssue issue = CouponIssue.create(1L, 10L, ZonedDateTime.now().plusDays(7));
         PageRequest pageable = PageRequest.of(0, 10);
 
@@ -226,7 +226,7 @@ class CouponApplicationServiceTest {
     void issue_success() {
         Long userId = 1L;
         Long couponId = 10L;
-        Coupon coupon = Coupon.create("쿠폰", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), 7);
+        Coupon coupon = Coupon.create("쿠폰", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), ZonedDateTime.now().plusDays(7));
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(mock(User.class)));
         when(couponRepository.findById(couponId)).thenReturn(Optional.of(coupon));
@@ -245,7 +245,7 @@ class CouponApplicationServiceTest {
     void issue_idempotent_whenAlreadyIssued() {
         Long userId = 1L;
         Long couponId = 10L;
-        Coupon coupon = Coupon.create("쿠폰", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), 7);
+        Coupon coupon = Coupon.create("쿠폰", "설명", CouponType.FIXED, BigDecimal.valueOf(5000), ZonedDateTime.now().plusDays(7));
         CouponIssue existing = CouponIssue.create(couponId, userId, ZonedDateTime.now().plusDays(7));
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(mock(User.class)));
