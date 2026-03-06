@@ -5,12 +5,10 @@ import com.loopers.application.order.OrderDto;
 import com.loopers.interfaces.api.ApiResponse;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
-import jakarta.persistence.OptimisticLockException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.ZonedDateTime;
@@ -34,8 +32,6 @@ public class OrderV1Controller {
 
             OrderDto.OrderInfo order = orderFacade.placeOrder(userId, commands, request.couponId());
             return ApiResponse.success(OrderV1Dto.OrderResponse.from(order));
-        } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
-            throw new CoreException(ErrorType.CONFLICT, "동시 요청으로 실패했습니다. 다시 시도해주세요");
         } catch (IllegalArgumentException e) {
             throw new CoreException(ErrorType.BAD_REQUEST, e.getMessage());
         }
@@ -74,8 +70,6 @@ public class OrderV1Controller {
         try {
             OrderDto.OrderInfo order = orderFacade.cancelOrder(userId, orderId);
             return ApiResponse.success(OrderV1Dto.OrderResponse.from(order));
-        } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
-            throw new CoreException(ErrorType.CONFLICT, "동시 요청으로 실패했습니다. 다시 시도해주세요");
         } catch (IllegalArgumentException e) {
             throw new CoreException(ErrorType.BAD_REQUEST, e.getMessage());
         }

@@ -239,6 +239,56 @@ class OrderFacadeIntegrationTest {
         assertThat(product.getStock()).isEqualTo(5 - concurrency);
     }
 
+    @DisplayName("재고 2개 상품에 5명이 동시에 주문하면 정확히 2건만 성공하고 재고는 0이 된다")
+    @Test
+    void placeOrder_concurrent_stockExhausted() throws InterruptedException {
+        Brand brand = brandJpaRepository.save(
+            Brand.create(new BrandName("LIMITED_BRAND"), new BrandDescription("한정 브랜드"))
+        );
+        Product limitedProduct = productJpaRepository.save(
+            Product.create(brand.getId(), "한정 상품", "설명", BigDecimal.valueOf(10000), 2)
+        );
+        Long limitedProductId = limitedProduct.getId();
+
+        int concurrency = 5;
+        ExecutorService executor = Executors.newFixedThreadPool(concurrency);
+        CountDownLatch ready = new CountDownLatch(concurrency);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(concurrency);
+        List<Long> successIds = Collections.synchronizedList(new ArrayList<>());
+        List<Throwable> failures = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < concurrency; i++) {
+            executor.submit(() -> {
+                ready.countDown();
+                try {
+                    start.await();
+                    OrderDto.OrderInfo order = orderFacade.placeOrder(
+                        userId,
+                        List.of(new OrderDto.OrderLineCommand(limitedProductId, 1)),
+                        null
+                    );
+                    successIds.add(order.id());
+                } catch (Throwable t) {
+                    failures.add(t);
+                } finally {
+                    done.countDown();
+                }
+            });
+        }
+
+        assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+        start.countDown();
+        assertThat(done.await(15, TimeUnit.SECONDS)).isTrue();
+        executor.shutdown();
+        assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+
+        assertThat(successIds).hasSize(2);
+        assertThat(failures).hasSize(3);
+        Product product = productRepository.findById(limitedProductId).orElseThrow();
+        assertThat(product.getStock()).isEqualTo(0);
+    }
+
     @DisplayName("동일한 쿠폰으로 동시에 주문해도 쿠폰은 단 한 번만 사용된다")
     @Test
     void placeOrder_concurrent_couponUsedOnce() throws InterruptedException {
