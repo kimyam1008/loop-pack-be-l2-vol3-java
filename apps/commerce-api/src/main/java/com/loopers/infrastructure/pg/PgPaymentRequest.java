@@ -10,6 +10,6 @@ public record PgPaymentRequest(
     String callbackUrl
 ) {
     public static PgPaymentRequest of(Long orderId, String cardType, String cardNo, BigDecimal amount, String callbackUrl) {
-        return new PgPaymentRequest(String.valueOf(orderId), cardType, cardNo, amount.longValue(), callbackUrl);
+        return new PgPaymentRequest(String.format("%06d", orderId), cardType, cardNo, amount.longValue(), callbackUrl);
     }
 }

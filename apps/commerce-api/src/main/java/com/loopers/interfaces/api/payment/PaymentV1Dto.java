@@ -26,12 +26,12 @@ public class PaymentV1Dto {
     }
 
     public record CallbackRequest(
-        String transactionId,
+        String transactionKey,
         String orderId,
         String status
     ) {
         public PaymentDto.CallbackCommand toCommand() {
-            return new PaymentDto.CallbackCommand(transactionId, orderId, status);
+            return new PaymentDto.CallbackCommand(transactionKey, orderId, status);
         }
     }
 
