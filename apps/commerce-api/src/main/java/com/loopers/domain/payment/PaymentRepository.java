@@ -1,5 +1,7 @@
 package com.loopers.domain.payment;
 
+import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface PaymentRepository {
@@ -12,4 +14,7 @@ public interface PaymentRepository {
     Optional<Payment> findByOrderId(Long orderId);
 
     Optional<Payment> findByPgTransactionId(String pgTransactionId);
+
+    /** createdAt 기준 이전에 생성된 PENDING 결제 목록 조회 (배치 복구용) */
+    List<Payment> findAllPendingBefore(ZonedDateTime createdAt);
 }
