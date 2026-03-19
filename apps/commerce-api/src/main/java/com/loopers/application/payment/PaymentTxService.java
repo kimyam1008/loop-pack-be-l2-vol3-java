@@ -60,14 +60,36 @@ public class PaymentTxService {
 
         if ("SUCCESS".equals(pgStatus)) {
             payment.markSuccess(pgTransactionId);
-            order.changeStatus(OrderStatus.CONFIRMED);
-            orderRepository.save(order);
+            if (order.getStatus() == OrderStatus.CANCELLED) {
+                // 주문이 이미 취소된 상태에서 SUCCESS 콜백 도착 → 환불 처리
+                payment.markRefunded();
+            } else {
+                order.changeStatus(OrderStatus.CONFIRMED);
+                orderRepository.save(order);
+            }
         } else {
             payment.markFailed(pgTransactionId);
             cancelOrderWithRecovery(order);
         }
 
         paymentRepository.save(payment);
+    }
+
+    /**
+     * 주문 취소로 인한 결제 처리.
+     * - SUCCESS → REFUNDED (결제 완료 후 주문 취소)
+     * - PENDING → FAILED  (결제 진행 중 주문 취소 — PG 결과 무관하게 무효화)
+     */
+    @Transactional
+    public void refundPayment(Long orderId) {
+        paymentRepository.findByOrderId(orderId).ifPresent(payment -> {
+            if (payment.getStatus() == PaymentStatus.SUCCESS) {
+                payment.markRefunded();
+            } else if (payment.getStatus() == PaymentStatus.PENDING) {
+                payment.markFailed(null);
+            }
+            paymentRepository.save(payment);
+        });
     }
 
     private void cancelOrderWithRecovery(Order order) {

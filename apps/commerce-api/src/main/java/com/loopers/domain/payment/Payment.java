@@ -83,6 +83,13 @@ public class Payment extends BaseEntity {
         this.status = PaymentStatus.FAILED;
     }
 
+    public void markRefunded() {
+        if (this.status != PaymentStatus.SUCCESS) {
+            throw new IllegalStateException("SUCCESS 상태의 결제만 환불 처리할 수 있습니다");
+        }
+        this.status = PaymentStatus.REFUNDED;
+    }
+
     @Override
     protected void guard() {
         if (orderId == null || orderId <= 0) throw new IllegalArgumentException("주문 ID는 필수입니다");
