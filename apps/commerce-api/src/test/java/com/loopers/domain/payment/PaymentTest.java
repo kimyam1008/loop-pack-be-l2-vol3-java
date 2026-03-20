@@ -82,4 +82,34 @@ class PaymentTest {
         assertThat(payment.getPgTransactionId()).isEqualTo("20250816:TR:abc123");
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.PENDING);
     }
+
+    @DisplayName("markRefunded: SUCCESS 결제를 환불 처리하면 REFUNDED 상태가 된다")
+    @Test
+    void markRefunded_success() {
+        Payment payment = Payment.create(1L, 2L, "SAMSUNG", "1234-5678", BigDecimal.valueOf(5000));
+        payment.markSuccess("txId1");
+
+        payment.markRefunded();
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+    }
+
+    @DisplayName("markRefunded: PENDING 상태에서 환불 처리하면 예외가 발생한다")
+    @Test
+    void markRefunded_fail_fromPending() {
+        Payment payment = Payment.create(1L, 2L, "SAMSUNG", "1234-5678", BigDecimal.valueOf(5000));
+
+        assertThatThrownBy(payment::markRefunded)
+            .isInstanceOf(IllegalStateException.class);
+    }
+
+    @DisplayName("markRefunded: FAILED 상태에서 환불 처리하면 예외가 발생한다")
+    @Test
+    void markRefunded_fail_fromFailed() {
+        Payment payment = Payment.create(1L, 2L, "SAMSUNG", "1234-5678", BigDecimal.valueOf(5000));
+        payment.markFailed("txId1");
+
+        assertThatThrownBy(payment::markRefunded)
+            .isInstanceOf(IllegalStateException.class);
+    }
 }
