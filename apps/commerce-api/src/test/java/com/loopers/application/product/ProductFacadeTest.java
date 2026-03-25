@@ -27,6 +27,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.*;
 
+import org.springframework.context.ApplicationEventPublisher;
+
 class ProductFacadeTest {
 
     private ProductRepository productRepository;
@@ -43,7 +45,8 @@ class ProductFacadeTest {
             productRepository,
             brandRepository,
             new ProductService(),
-            mock(ProductCacheStore.class)
+            mock(ProductCacheStore.class),
+            mock(ApplicationEventPublisher.class)
         );
 
         brand = Brand.create(new BrandName("LOOPERS"), new BrandDescription("루퍼스 브랜드"));

@@ -1,5 +1,6 @@
 package com.loopers.application.product;
 
+import com.loopers.application.product.event.ProductViewedEvent;
 import com.loopers.domain.brand.Brand;
 import com.loopers.domain.brand.BrandRepository;
 import com.loopers.domain.product.Product;
@@ -11,11 +12,14 @@ import com.loopers.infrastructure.product.ProductCacheStore;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -30,6 +34,7 @@ public class ProductFacade {
     private final BrandRepository brandRepository;
     private final ProductService productService;
     private final ProductCacheStore productCacheStore;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public ProductDto.ProductInfo register(Long brandId, String name, String description, BigDecimal price, Integer stock) {
@@ -109,16 +114,20 @@ public class ProductFacade {
 
     @Transactional(readOnly = true)
     public ProductDto.ProductInfo getProduct(Long productId) {
-        return productCacheStore.getProduct(productId)
+        ProductDto.ProductInfo info = productCacheStore.getProduct(productId)
             .orElseGet(() -> {
                 Product product = productRepository.findById(productId)
                     .orElseThrow(() -> new CoreException(ErrorType.PRODUCT_NOT_FOUND));
                 Brand brand = brandRepository.findById(product.getBrandId())
                     .orElseThrow(() -> new CoreException(ErrorType.BRAND_NOT_FOUND));
-                ProductDto.ProductInfo info = ProductDto.ProductInfo.of(product, brand.getName());
-                productCacheStore.putProduct(productId, info);
-                return info;
+                ProductDto.ProductInfo result = ProductDto.ProductInfo.of(product, brand.getName());
+                productCacheStore.putProduct(productId, result);
+                return result;
             });
+
+        eventPublisher.publishEvent(new ProductViewedEvent(productId, null, Instant.now()));
+
+        return info;
     }
 
     @Transactional
