@@ -51,6 +51,18 @@ class OutboxRelaySchedulerTest {
         assertThat(event.isPublished()).isTrue();
     }
 
+    @DisplayName("COUPON 타입 이벤트는 coupon issue 토픽으로 발행한다")
+    @Test
+    void relay_couponEvent_sendsToCouponTopic() {
+        OutboxEvent event = OutboxEvent.create("COUPON", 1L, "COUPON_ISSUE_REQUESTED", "{\"requestId\":1}");
+        when(outboxEventRepository.findUnpublished(anyInt())).thenReturn(List.of(event));
+
+        scheduler.relay();
+
+        verify(kafkaTemplate).send(eq("coupon.issue-requests.topic-v1"), eq("1"), anyString());
+        assertThat(event.isPublished()).isTrue();
+    }
+
     @DisplayName("미발행 이벤트가 없으면 Kafka 발행을 하지 않는다")
     @Test
     void relay_noEvents_doesNothing() {

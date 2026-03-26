@@ -1,5 +1,6 @@
 package com.loopers.application.coupon;
 
+import com.loopers.application.outbox.OutboxEventService;
 import com.loopers.domain.coupon.*;
 import com.loopers.domain.user.UserRepository;
 import com.loopers.domain.user.User;
@@ -7,7 +8,6 @@ import com.loopers.support.error.CoreException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
@@ -23,7 +23,7 @@ class CouponIssueFacadeTest {
     private CouponRepository couponRepository;
     private CouponIssueRequestRepository couponIssueRequestRepository;
     private UserRepository userRepository;
-    private KafkaTemplate<Object, Object> kafkaTemplate;
+    private OutboxEventService outboxEventService;
     private CouponIssueFacade couponIssueFacade;
 
     @BeforeEach
@@ -31,13 +31,13 @@ class CouponIssueFacadeTest {
         couponRepository = mock(CouponRepository.class);
         couponIssueRequestRepository = mock(CouponIssueRequestRepository.class);
         userRepository = mock(UserRepository.class);
-        kafkaTemplate = mock(KafkaTemplate.class);
+        outboxEventService = mock(OutboxEventService.class);
         couponIssueFacade = new CouponIssueFacade(
-            couponRepository, couponIssueRequestRepository, userRepository, kafkaTemplate
+            couponRepository, couponIssueRequestRepository, userRepository, outboxEventService
         );
     }
 
-    @DisplayName("requestIssue: PENDING 상태 요청을 저장하고 Kafka에 발행 후 requestId를 반환한다")
+    @DisplayName("requestIssue: PENDING 상태 요청을 저장하고 Outbox에 기록 후 requestId를 반환한다")
     @Test
     void requestIssue_success() {
         Coupon coupon = Coupon.create("쿠폰", "설명", CouponType.FIXED,
@@ -54,7 +54,7 @@ class CouponIssueFacadeTest {
         assertThat(result.couponId()).isEqualTo(1L);
         assertThat(result.userId()).isEqualTo(100L);
         assertThat(result.status()).isEqualTo(CouponIssueRequestStatus.PENDING);
-        verify(kafkaTemplate).send(eq("coupon.issue-requests.topic-v1"), eq("1"), anyString());
+        verify(outboxEventService).save(eq("COUPON"), eq(1L), eq("COUPON_ISSUE_REQUESTED"), any());
     }
 
     @DisplayName("requestIssue: 존재하지 않는 사용자면 예외가 발생한다")
@@ -64,7 +64,7 @@ class CouponIssueFacadeTest {
 
         assertThatThrownBy(() -> couponIssueFacade.requestIssue(100L, 1L))
             .isInstanceOf(CoreException.class);
-        verify(kafkaTemplate, never()).send(anyString(), anyString(), any());
+        verify(outboxEventService, never()).save(anyString(), anyLong(), anyString(), any());
     }
 
     @DisplayName("requestIssue: 존재하지 않는 쿠폰이면 예외가 발생한다")
@@ -76,7 +76,7 @@ class CouponIssueFacadeTest {
 
         assertThatThrownBy(() -> couponIssueFacade.requestIssue(100L, 1L))
             .isInstanceOf(CoreException.class);
-        verify(kafkaTemplate, never()).send(anyString(), anyString(), any());
+        verify(outboxEventService, never()).save(anyString(), anyLong(), anyString(), any());
     }
 
     @DisplayName("getIssueRequestStatus: requestId로 발급 요청 상태를 조회한다")

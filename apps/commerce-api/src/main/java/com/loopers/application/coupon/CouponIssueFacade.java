@@ -1,7 +1,6 @@
 package com.loopers.application.coupon;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.loopers.application.outbox.OutboxEventService;
 import com.loopers.domain.coupon.CouponIssueRequest;
 import com.loopers.domain.coupon.CouponIssueRequestRepository;
 import com.loopers.domain.coupon.CouponRepository;
@@ -10,7 +9,6 @@ import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,13 +19,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CouponIssueFacade {
 
-    private static final String COUPON_ISSUE_TOPIC = "coupon.issue-requests.topic-v1";
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-
     private final CouponRepository couponRepository;
     private final CouponIssueRequestRepository couponIssueRequestRepository;
     private final UserRepository userRepository;
-    private final KafkaTemplate<Object, Object> kafkaTemplate;
+    private final OutboxEventService outboxEventService;
 
     @Transactional
     public CouponDto.CouponIssueRequestInfo requestIssue(Long userId, Long couponId) {
@@ -39,12 +34,12 @@ public class CouponIssueFacade {
         CouponIssueRequest request = CouponIssueRequest.create(couponId, userId);
         CouponIssueRequest savedRequest = couponIssueRequestRepository.save(request);
 
-        try {
-            String message = objectMapper.writeValueAsString(Map.of("requestId", savedRequest.getId()));
-            kafkaTemplate.send(COUPON_ISSUE_TOPIC, String.valueOf(couponId), message);
-        } catch (JsonProcessingException e) {
-            log.error("쿠폰 발급 요청 Kafka 발행 실패 - requestId: {}", savedRequest.getId(), e);
-        }
+        outboxEventService.save(
+            "COUPON",
+            couponId,
+            "COUPON_ISSUE_REQUESTED",
+            Map.of("requestId", savedRequest.getId())
+        );
 
         return CouponDto.CouponIssueRequestInfo.from(savedRequest);
     }

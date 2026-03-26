@@ -18,6 +18,7 @@ public class OutboxRelayScheduler {
 
     private static final String CATALOG_EVENTS_TOPIC = "catalog.events.topic-v1";
     private static final String ORDER_EVENTS_TOPIC = "order.events.topic-v1";
+    private static final String COUPON_ISSUE_TOPIC = "coupon.issue-requests.topic-v1";
     private static final int BATCH_SIZE = 100;
 
     private final OutboxEventRepository outboxEventRepository;
@@ -50,6 +51,7 @@ public class OutboxRelayScheduler {
         return switch (aggregateType) {
             case "PRODUCT" -> CATALOG_EVENTS_TOPIC;
             case "ORDER" -> ORDER_EVENTS_TOPIC;
+            case "COUPON" -> COUPON_ISSUE_TOPIC;
             default -> throw new IllegalArgumentException("Unknown aggregate type: " + aggregateType);
         };
     }

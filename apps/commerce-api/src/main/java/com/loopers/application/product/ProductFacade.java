@@ -1,5 +1,6 @@
 package com.loopers.application.product;
 
+import com.loopers.application.product.event.ProductPriceChangedEvent;
 import com.loopers.application.product.event.ProductViewedEvent;
 import com.loopers.domain.brand.Brand;
 import com.loopers.domain.brand.BrandRepository;
@@ -61,11 +62,17 @@ public class ProductFacade {
             throw new CoreException(ErrorType.DUPLICATE_PRODUCT_NAME);
         }
 
+        BigDecimal oldPrice = product.getPrice();
         productService.updateProduct(product, normalizedName, description, price, stock);
         Product saved = productRepository.save(product);
         Brand brand = brandRepository.findById(saved.getBrandId())
             .orElseThrow(() -> new CoreException(ErrorType.BRAND_NOT_FOUND));
         productCacheStore.evictProduct(productId);
+
+        if (price != null && price.compareTo(oldPrice) != 0) {
+            eventPublisher.publishEvent(new ProductPriceChangedEvent(productId, price, Instant.now()));
+        }
+
         return ProductDto.ProductInfo.of(saved, brand.getName());
     }
 

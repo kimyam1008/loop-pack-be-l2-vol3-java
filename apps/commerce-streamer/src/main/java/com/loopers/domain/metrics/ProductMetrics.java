@@ -3,6 +3,9 @@ package com.loopers.domain.metrics;
 import jakarta.persistence.*;
 import lombok.Getter;
 
+import java.math.BigDecimal;
+import java.time.Instant;
+
 @Entity
 @Table(name = "product_metrics")
 @Getter
@@ -23,6 +26,12 @@ public class ProductMetrics {
 
     @Column(name = "sales_count", nullable = false)
     private long salesCount;
+
+    @Column(name = "latest_price", precision = 19, scale = 2)
+    private BigDecimal latestPrice;
+
+    @Column(name = "price_updated_at")
+    private Instant priceUpdatedAt;
 
     protected ProductMetrics() {
     }

@@ -4,6 +4,9 @@ import com.loopers.domain.metrics.ProductMetricsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
+import java.time.Instant;
+
 @Repository
 @RequiredArgsConstructor
 public class ProductMetricsRepositoryAdapter implements ProductMetricsRepository {
@@ -23,5 +26,10 @@ public class ProductMetricsRepositoryAdapter implements ProductMetricsRepository
     @Override
     public void upsertSalesCount(Long productId, int delta) {
         jpaRepository.upsertSalesCount(productId, delta);
+    }
+
+    @Override
+    public void upsertPrice(Long productId, BigDecimal price, Instant occurredAt) {
+        jpaRepository.upsertPrice(productId, price, occurredAt);
     }
 }

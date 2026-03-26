@@ -4,7 +4,7 @@ import com.loopers.application.like.event.ProductLikedEvent;
 import com.loopers.application.like.event.ProductUnlikedEvent;
 import com.loopers.application.order.event.OrderCancelledEvent;
 import com.loopers.application.order.event.OrderPlacedEvent;
-import com.loopers.application.product.event.ProductViewedEvent;
+import com.loopers.application.product.event.ProductPriceChangedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.time.Instant;
 import java.util.Map;
 
 @Slf4j
@@ -33,7 +34,8 @@ public class KafkaOutboxEventListener {
                     "orderId", event.orderId(),
                     "userId", event.userId(),
                     "productId", item.productId(),
-                    "quantity", item.quantity()
+                    "quantity", item.quantity(),
+                    "occurredAt", Instant.now().toString()
                 )
             );
         }
@@ -50,7 +52,8 @@ public class KafkaOutboxEventListener {
                     "orderId", event.orderId(),
                     "userId", event.userId(),
                     "productId", item.productId(),
-                    "quantity", item.quantity()
+                    "quantity", item.quantity(),
+                    "occurredAt", Instant.now().toString()
                 )
             );
         }
@@ -62,7 +65,10 @@ public class KafkaOutboxEventListener {
             "PRODUCT",
             event.productId(),
             "PRODUCT_LIKED",
-            Map.of("productId", event.productId())
+            Map.of(
+                "productId", event.productId(),
+                "occurredAt", Instant.now().toString()
+            )
         );
     }
 
@@ -72,7 +78,24 @@ public class KafkaOutboxEventListener {
             "PRODUCT",
             event.productId(),
             "PRODUCT_UNLIKED",
-            Map.of("productId", event.productId())
+            Map.of(
+                "productId", event.productId(),
+                "occurredAt", Instant.now().toString()
+            )
+        );
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    public void handleProductPriceChanged(ProductPriceChangedEvent event) {
+        outboxEventService.save(
+            "PRODUCT",
+            event.productId(),
+            "PRODUCT_PRICE_CHANGED",
+            Map.of(
+                "productId", event.productId(),
+                "price", event.newPrice(),
+                "occurredAt", event.occurredAt().toString()
+            )
         );
     }
 }

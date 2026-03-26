@@ -9,6 +9,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -24,9 +25,10 @@ public class KafkaDirectEventListener {
     public void handleProductViewed(ProductViewedEvent event) {
         try {
             Map<String, Object> message = Map.of(
+                "eventId", UUID.randomUUID().toString(),
                 "eventType", "PRODUCT_VIEWED",
                 "productId", event.productId(),
-                "viewedAt", event.viewedAt().toString()
+                "occurredAt", event.viewedAt().toString()
             );
             kafkaTemplate.send(CATALOG_EVENTS_TOPIC, String.valueOf(event.productId()), message);
         } catch (Exception e) {

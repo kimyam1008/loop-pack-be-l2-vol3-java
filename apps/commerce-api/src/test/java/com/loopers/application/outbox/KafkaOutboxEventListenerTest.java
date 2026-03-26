@@ -4,10 +4,13 @@ import com.loopers.application.like.event.ProductLikedEvent;
 import com.loopers.application.like.event.ProductUnlikedEvent;
 import com.loopers.application.order.event.OrderCancelledEvent;
 import com.loopers.application.order.event.OrderPlacedEvent;
+import com.loopers.application.product.event.ProductPriceChangedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -72,5 +75,17 @@ class KafkaOutboxEventListenerTest {
         listener.handleProductUnliked(new ProductUnlikedEvent(10L));
 
         verify(outboxEventService).save(eq("PRODUCT"), eq(10L), eq("PRODUCT_UNLIKED"), any());
+    }
+
+    @DisplayName("ProductPriceChangedEvent 수신 시 Outbox에 기록한다")
+    @Test
+    void handleProductPriceChanged_saves() {
+        ProductPriceChangedEvent event = new ProductPriceChangedEvent(
+            10L, BigDecimal.valueOf(15000), Instant.parse("2026-03-26T10:00:00Z")
+        );
+
+        listener.handleProductPriceChanged(event);
+
+        verify(outboxEventService).save(eq("PRODUCT"), eq(10L), eq("PRODUCT_PRICE_CHANGED"), any());
     }
 }
