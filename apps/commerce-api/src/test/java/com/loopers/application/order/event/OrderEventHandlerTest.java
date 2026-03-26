@@ -34,7 +34,9 @@ class OrderEventHandlerTest {
     @DisplayName("OrderCancelledEvent 수신 시 refundPayment를 호출한다")
     @Test
     void handleOrderCancelled_callsRefundPayment() {
-        OrderCancelledEvent event = new OrderCancelledEvent(1L, 100L);
+        OrderCancelledEvent event = new OrderCancelledEvent(1L, 100L, List.of(
+            new OrderCancelledEvent.CancelledItem(10L, 2)
+        ));
 
         handler.handleOrderCancelled(event);
 
@@ -44,7 +46,9 @@ class OrderEventHandlerTest {
     @DisplayName("OrderCancelledEvent 처리 중 refundPayment가 실패해도 예외를 전파하지 않는다")
     @Test
     void handleOrderCancelled_refundFails_doesNotThrow() {
-        OrderCancelledEvent event = new OrderCancelledEvent(1L, 100L);
+        OrderCancelledEvent event = new OrderCancelledEvent(1L, 100L, List.of(
+            new OrderCancelledEvent.CancelledItem(10L, 2)
+        ));
         doThrow(new RuntimeException("PG 환불 실패")).when(paymentTxService).refundPayment(1L);
 
         handler.handleOrderCancelled(event);
