@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.kafka.core.KafkaTemplate;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -31,6 +32,7 @@ class OutboxRelaySchedulerTest {
     void relay_publishesAndMarks() {
         OutboxEvent event = OutboxEvent.create("PRODUCT", 10L, "PRODUCT_LIKED", "{\"productId\":10}");
         when(outboxEventRepository.findUnpublished(anyInt())).thenReturn(List.of(event));
+        when(kafkaTemplate.send(anyString(), anyString(), anyString())).thenReturn(CompletableFuture.completedFuture(null));
 
         scheduler.relay();
 
@@ -44,6 +46,7 @@ class OutboxRelaySchedulerTest {
     void relay_orderEvent_sendsToOrderTopic() {
         OutboxEvent event = OutboxEvent.create("ORDER", 1L, "ORDER_CANCELLED", "{\"orderId\":1}");
         when(outboxEventRepository.findUnpublished(anyInt())).thenReturn(List.of(event));
+        when(kafkaTemplate.send(anyString(), anyString(), anyString())).thenReturn(CompletableFuture.completedFuture(null));
 
         scheduler.relay();
 
@@ -56,6 +59,7 @@ class OutboxRelaySchedulerTest {
     void relay_couponEvent_sendsToCouponTopic() {
         OutboxEvent event = OutboxEvent.create("COUPON", 1L, "COUPON_ISSUE_REQUESTED", "{\"requestId\":1}");
         when(outboxEventRepository.findUnpublished(anyInt())).thenReturn(List.of(event));
+        when(kafkaTemplate.send(anyString(), anyString(), anyString())).thenReturn(CompletableFuture.completedFuture(null));
 
         scheduler.relay();
 
@@ -79,7 +83,10 @@ class OutboxRelaySchedulerTest {
         OutboxEvent event1 = OutboxEvent.create("PRODUCT", 10L, "PRODUCT_LIKED", "{\"productId\":10}");
         OutboxEvent event2 = OutboxEvent.create("PRODUCT", 20L, "PRODUCT_LIKED", "{\"productId\":20}");
         when(outboxEventRepository.findUnpublished(anyInt())).thenReturn(List.of(event1, event2));
-        when(kafkaTemplate.send(anyString(), eq("10"), anyString())).thenThrow(new RuntimeException("Kafka 장애"));
+        when(kafkaTemplate.send(anyString(), eq("10"), anyString()))
+            .thenReturn(CompletableFuture.failedFuture(new RuntimeException("Kafka 장애")));
+        when(kafkaTemplate.send(anyString(), eq("20"), anyString()))
+            .thenReturn(CompletableFuture.completedFuture(null));
 
         scheduler.relay();
 

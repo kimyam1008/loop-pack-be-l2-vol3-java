@@ -36,7 +36,7 @@ public class OutboxRelayScheduler {
             try {
                 String topic = resolveTopic(event.getAggregateType());
                 String key = String.valueOf(event.getAggregateId());
-                kafkaTemplate.send(topic, key, event.getPayload());
+                kafkaTemplate.send(topic, key, event.getPayload()).get();
                 event.markPublished();
                 outboxEventRepository.save(event);
             } catch (Exception e) {

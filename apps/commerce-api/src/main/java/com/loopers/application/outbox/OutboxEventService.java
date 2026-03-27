@@ -31,8 +31,9 @@ public class OutboxEventService {
             OutboxEvent event = OutboxEvent.create(aggregateType, aggregateId, eventType, json);
             outboxEventRepository.save(event);
         } catch (JsonProcessingException e) {
-            log.error("Outbox 이벤트 직렬화 실패 - aggregateType: {}, aggregateId: {}, eventType: {}",
-                aggregateType, aggregateId, eventType, e);
+            throw new IllegalStateException(
+                String.format("Outbox 이벤트 직렬화 실패 - aggregateType: %s, aggregateId: %d, eventType: %s",
+                    aggregateType, aggregateId, eventType), e);
         }
     }
 }
