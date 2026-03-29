@@ -1,0 +1,51 @@
+package com.loopers.application.queue;
+
+import com.loopers.domain.queue.QueueRepository;
+import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorType;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class QueueService {
+
+    private static final int THROUGHPUT_PER_SECOND = 175;
+
+    private final QueueRepository queueRepository;
+
+    public QueueDto.QueueEntryResult enter(Long userId) {
+        double score = System.currentTimeMillis();
+        boolean entered = queueRepository.enterWaitQueue(userId, score);
+
+        Long position = queueRepository.getWaitPosition(userId);
+        Long totalWaiting = queueRepository.getWaitTotalCount();
+        Long estimatedWaitSeconds = calculateEstimatedWait(position);
+
+        return QueueDto.QueueEntryResult.of(position, totalWaiting, estimatedWaitSeconds);
+    }
+
+    public QueueDto.QueuePositionResult getPosition(Long userId) {
+        String token = queueRepository.getToken(userId);
+        if (token != null) {
+            return QueueDto.QueuePositionResult.of(0L, 0L, 0L, token);
+        }
+
+        Long position = queueRepository.getWaitPosition(userId);
+        if (position == null) {
+            throw new CoreException(ErrorType.QUEUE_NOT_ENTERED);
+        }
+
+        Long totalWaiting = queueRepository.getWaitTotalCount();
+        Long estimatedWaitSeconds = calculateEstimatedWait(position);
+
+        return QueueDto.QueuePositionResult.of(position, totalWaiting, estimatedWaitSeconds, null);
+    }
+
+    private Long calculateEstimatedWait(Long position) {
+        if (position == null || position <= 0) {
+            return 0L;
+        }
+        return (long) Math.ceil((double) position / THROUGHPUT_PER_SECOND);
+    }
+}
