@@ -17,13 +17,14 @@ public class RedisQueueRepository implements QueueRepository {
 
     private static final String WAIT_QUEUE_KEY = "queue:wait";
     private static final String TOKEN_KEY_PREFIX = "queue:token:";
+    private static final String ACTIVE_TOKEN_COUNT_KEY = "queue:active-token-count";
 
     private final RedisTemplate<String, String> redisTemplate;
 
     @Override
     public boolean enterWaitQueue(Long userId, double score) {
-        Boolean added = redisTemplate.opsForZSet().addIfAbsent(WAIT_QUEUE_KEY, userId.toString(), score);
-        return Boolean.TRUE.equals(added);
+        redisTemplate.opsForZSet().add(WAIT_QUEUE_KEY, userId.toString(), score);
+        return true;
     }
 
     @Override
@@ -68,6 +69,29 @@ public class RedisQueueRepository implements QueueRepository {
     @Override
     public void removeToken(Long userId) {
         redisTemplate.delete(tokenKey(userId));
+    }
+
+    @Override
+    public long getActiveTokenCount() {
+        String value = redisTemplate.opsForValue().get(ACTIVE_TOKEN_COUNT_KEY);
+        if (value == null) {
+            return 0L;
+        }
+        long count = Long.parseLong(value);
+        return Math.max(count, 0L);
+    }
+
+    @Override
+    public void incrementActiveTokenCount(long count, long ttlSeconds) {
+        Long result = redisTemplate.opsForValue().increment(ACTIVE_TOKEN_COUNT_KEY, count);
+        if (result != null && result == count) {
+            redisTemplate.expire(ACTIVE_TOKEN_COUNT_KEY, Duration.ofSeconds(ttlSeconds));
+        }
+    }
+
+    @Override
+    public void decrementActiveTokenCount() {
+        redisTemplate.opsForValue().increment(ACTIVE_TOKEN_COUNT_KEY, -1);
     }
 
     private String tokenKey(Long userId) {

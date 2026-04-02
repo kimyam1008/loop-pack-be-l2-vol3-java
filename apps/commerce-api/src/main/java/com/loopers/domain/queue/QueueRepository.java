@@ -22,4 +22,11 @@ public interface QueueRepository {
     String getToken(Long userId);
 
     void removeToken(Long userId);
+
+    // 활성 토큰 카운터
+    long getActiveTokenCount();
+
+    void incrementActiveTokenCount(long count, long ttlSeconds);
+
+    void decrementActiveTokenCount();
 }

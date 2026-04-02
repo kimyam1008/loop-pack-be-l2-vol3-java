@@ -63,6 +63,7 @@ public class EntryTokenInterceptor implements HandlerInterceptor {
             if (userIdHeader != null) {
                 Long userId = Long.parseLong(userIdHeader);
                 queueRepository.removeToken(userId);
+                queueRepository.decrementActiveTokenCount();
                 log.debug("입장 토큰 삭제 - userId:{}", userId);
             }
         }

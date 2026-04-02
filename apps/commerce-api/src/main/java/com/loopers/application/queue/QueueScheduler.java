@@ -3,6 +3,7 @@ package com.loopers.application.queue;
 import com.loopers.domain.queue.QueueRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -28,8 +29,15 @@ public class QueueScheduler {
     private final QueueRepository queueRepository;
 
     @Scheduled(fixedRate = 100)
+    @SchedulerLock(name = "queue-activate", lockAtMostFor = "PT1S", lockAtLeastFor = "PT0.09S")
     public void activateUsers() {
-        List<Long> userIds = queueRepository.popFromWaitQueue(BATCH_SIZE);
+        long activeCount = queueRepository.getActiveTokenCount();
+        long deficit = BATCH_SIZE - activeCount;
+        if (deficit <= 0) {
+            return;
+        }
+
+        List<Long> userIds = queueRepository.popFromWaitQueue(deficit);
         if (userIds.isEmpty()) {
             return;
         }
@@ -38,6 +46,7 @@ public class QueueScheduler {
             String token = UUID.randomUUID().toString();
             queueRepository.issueToken(userId, token, TOKEN_TTL_SECONDS);
         }
-        log.debug("대기열 활성화: {}명 토큰 발급", userIds.size());
+        queueRepository.incrementActiveTokenCount(userIds.size(), TOKEN_TTL_SECONDS);
+        log.debug("대기열 활성화: {}명 토큰 발급 (활성: {}, 보충: {})", userIds.size(), activeCount, deficit);
     }
 }

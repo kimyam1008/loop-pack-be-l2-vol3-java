@@ -7,13 +7,15 @@ public class QueueV1Dto {
     public record QueueEntryResponse(
             Long position,
             Long totalWaiting,
-            Long estimatedWaitSeconds
+            Long estimatedWaitSeconds,
+            Long nextPollAfterSeconds
     ) {
         public static QueueEntryResponse from(QueueDto.QueueEntryResult result) {
             return new QueueEntryResponse(
                     result.position(),
                     result.totalWaiting(),
-                    result.estimatedWaitSeconds()
+                    result.estimatedWaitSeconds(),
+                    result.nextPollAfterSeconds()
             );
         }
     }
@@ -22,14 +24,16 @@ public class QueueV1Dto {
             Long position,
             Long totalWaiting,
             Long estimatedWaitSeconds,
-            String token
+            String token,
+            Long nextPollAfterSeconds
     ) {
         public static QueuePositionResponse from(QueueDto.QueuePositionResult result) {
             return new QueuePositionResponse(
                     result.position(),
                     result.totalWaiting(),
                     result.estimatedWaitSeconds(),
-                    result.token()
+                    result.token(),
+                    result.nextPollAfterSeconds()
             );
         }
     }

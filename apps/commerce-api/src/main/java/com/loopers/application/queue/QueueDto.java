@@ -5,10 +5,11 @@ public class QueueDto {
     public record QueueEntryResult(
             Long position,
             Long totalWaiting,
-            Long estimatedWaitSeconds
+            Long estimatedWaitSeconds,
+            Long nextPollAfterSeconds
     ) {
-        public static QueueEntryResult of(Long position, Long totalWaiting, Long estimatedWaitSeconds) {
-            return new QueueEntryResult(position, totalWaiting, estimatedWaitSeconds);
+        public static QueueEntryResult of(Long position, Long totalWaiting, Long estimatedWaitSeconds, Long nextPollAfterSeconds) {
+            return new QueueEntryResult(position, totalWaiting, estimatedWaitSeconds, nextPollAfterSeconds);
         }
     }
 
@@ -16,10 +17,11 @@ public class QueueDto {
             Long position,
             Long totalWaiting,
             Long estimatedWaitSeconds,
-            String token
+            String token,
+            Long nextPollAfterSeconds
     ) {
-        public static QueuePositionResult of(Long position, Long totalWaiting, Long estimatedWaitSeconds, String token) {
-            return new QueuePositionResult(position, totalWaiting, estimatedWaitSeconds, token);
+        public static QueuePositionResult of(Long position, Long totalWaiting, Long estimatedWaitSeconds, String token, Long nextPollAfterSeconds) {
+            return new QueuePositionResult(position, totalWaiting, estimatedWaitSeconds, token, nextPollAfterSeconds);
         }
     }
 }
