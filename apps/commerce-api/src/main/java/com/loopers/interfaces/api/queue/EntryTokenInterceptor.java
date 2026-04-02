@@ -33,7 +33,12 @@ public class EntryTokenInterceptor implements HandlerInterceptor {
             throw new CoreException(ErrorType.ENTRY_TOKEN_NOT_FOUND);
         }
 
-        Long userId = Long.parseLong(userIdHeader);
+        Long userId;
+        try {
+            userId = Long.parseLong(userIdHeader);
+        } catch (NumberFormatException e) {
+            throw new CoreException(ErrorType.BAD_REQUEST);
+        }
         String storedToken = queueRepository.getToken(userId);
 
         if (storedToken == null) {

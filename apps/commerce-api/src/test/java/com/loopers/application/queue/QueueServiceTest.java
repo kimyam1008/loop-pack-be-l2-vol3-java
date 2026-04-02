@@ -85,10 +85,12 @@ class QueueServiceTest {
             Long userId = 1L;
             String token = "abc-123-def";
             when(queueRepository.getToken(userId)).thenReturn(token);
+            when(queueRepository.getWaitTotalCount()).thenReturn(500L);
 
             QueueDto.QueuePositionResult result = queueService.getPosition(userId);
 
             assertThat(result.position()).isEqualTo(0L);
+            assertThat(result.totalWaiting()).isEqualTo(500L);
             assertThat(result.token()).isEqualTo(token);
         }
 

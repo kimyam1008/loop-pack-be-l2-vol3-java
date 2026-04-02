@@ -15,12 +15,12 @@ import java.util.UUID;
 public class QueueScheduler {
 
     /**
-     * 처리량 설계 기준:
-     * - DB 커넥션 풀: 50
-     * - 주문 1건 평균 처리 시간: 200ms
+     * 처리량 설계 기준 (상세: docs/design/05-queue-throughput-design.md)
+     * - DB 커넥션 풀: 50 (jpa.yml)
+     * - 주문 1건 평균 처리 시간: 200ms (보수적 추정, 실측 필요)
      * - 이론적 최대 TPS: 50 / 0.2 = 250
      * - 안전 마진 70%: 175 TPS
-     * - Thundering Herd 완화: 1초를 10구간으로 나눠 100ms마다 ~18명씩 발급
+     * - Thundering Herd 완화: 1초를 10구간으로 나눠 100ms마다 18명씩 발급
      */
     private static final int BATCH_SIZE = 18;
     private static final long TOKEN_TTL_SECONDS = 300;

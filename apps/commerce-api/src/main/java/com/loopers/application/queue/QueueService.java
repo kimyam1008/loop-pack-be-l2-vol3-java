@@ -28,7 +28,8 @@ public class QueueService {
     public QueueDto.QueuePositionResult getPosition(Long userId) {
         String token = queueRepository.getToken(userId);
         if (token != null) {
-            return QueueDto.QueuePositionResult.of(0L, 0L, 0L, token);
+            Long totalWaiting = queueRepository.getWaitTotalCount();
+            return QueueDto.QueuePositionResult.of(0L, totalWaiting, 0L, token);
         }
 
         Long position = queueRepository.getWaitPosition(userId);
