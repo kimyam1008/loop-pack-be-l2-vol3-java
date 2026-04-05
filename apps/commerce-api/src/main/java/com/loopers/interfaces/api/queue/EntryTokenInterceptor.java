@@ -10,6 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+import java.util.Set;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -17,6 +19,13 @@ public class EntryTokenInterceptor implements HandlerInterceptor {
 
     private static final String USER_ID_HEADER = "X-Loopers-User-Id";
     private static final String TOKEN_HEADER = "X-Entry-Token";
+
+    private static final Set<ErrorType> NON_RETRYABLE_ERRORS = Set.of(
+        ErrorType.PRODUCT_NOT_FOUND,
+        ErrorType.PRODUCT_INSUFFICIENT_STOCK,
+        ErrorType.COUPON_NOT_FOUND,
+        ErrorType.COUPON_NOT_AVAILABLE
+    );
 
     private final QueueRepository queueRepository;
 
@@ -58,14 +67,27 @@ public class EntryTokenInterceptor implements HandlerInterceptor {
             return;
         }
 
-        if (response.getStatus() == 200 && ex == null) {
-            String userIdHeader = request.getHeader(USER_ID_HEADER);
-            if (userIdHeader != null) {
-                Long userId = Long.parseLong(userIdHeader);
-                queueRepository.removeToken(userId);
-                queueRepository.decrementActiveTokenCount();
-                log.debug("입장 토큰 삭제 - userId:{}", userId);
-            }
+        int status = response.getStatus();
+        boolean isSuccess = (status >= 200 && status < 300);
+
+        if (isSuccess && ex == null) {
+            removeTokenAndReleaseSlot(request, "주문 성공 - 토큰 삭제");
+            return;
+        }
+
+        ErrorType errorType = (ErrorType) request.getAttribute("errorType");
+        if (errorType != null && NON_RETRYABLE_ERRORS.contains(errorType)) {
+            removeTokenAndReleaseSlot(request, "비재시도 실패(" + errorType.getCode() + ") - 토큰 삭제, 슬롯 반환");
+        }
+    }
+
+    private void removeTokenAndReleaseSlot(HttpServletRequest request, String reason) {
+        String userIdHeader = request.getHeader(USER_ID_HEADER);
+        if (userIdHeader != null) {
+            Long userId = Long.parseLong(userIdHeader);
+            queueRepository.removeToken(userId);
+            queueRepository.decrementActiveTokenCount();
+            log.debug("{} - userId:{}", reason, userId);
         }
     }
 }

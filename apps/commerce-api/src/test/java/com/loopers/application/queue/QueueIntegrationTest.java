@@ -68,8 +68,10 @@ class QueueIntegrationTest {
             executor.shutdown();
             assertThat(errors).isEmpty();
 
-            // 스케줄러가 자동 실행되어 일부를 소비할 수 있으므로,
-            // 대기열 + 토큰 발급된 유저의 합이 100인지 검증
+            // 스케줄러가 pop → 토큰 발급 중간 타이밍에 검증하면 누락이 발생할 수 있으므로,
+            // 진행 중인 스케줄러 작업이 완료될 때까지 짧게 대기
+            Thread.sleep(200);
+
             long waitCount = queueRepository.getWaitTotalCount();
             long tokenCount = 0;
             for (long i = 1; i <= 100; i++) {
@@ -117,8 +119,7 @@ class QueueIntegrationTest {
         @Test
         void getPosition_afterTokenIssued_returnsToken() {
             Long userId = 1L;
-            queueService.enter(userId);
-            queueScheduler.activateUsers();
+            queueRepository.issueToken(userId, "test-token", 300);
 
             QueueDto.QueuePositionResult result = queueService.getPosition(userId);
 

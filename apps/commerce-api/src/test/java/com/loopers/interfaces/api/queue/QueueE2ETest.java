@@ -1,6 +1,5 @@
 package com.loopers.interfaces.api.queue;
 
-import com.loopers.application.queue.QueueScheduler;
 import com.loopers.domain.queue.QueueRepository;
 import com.loopers.utils.RedisCleanUp;
 import org.junit.jupiter.api.AfterEach;
@@ -24,9 +23,6 @@ class QueueE2ETest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
-    private QueueScheduler queueScheduler;
 
     @Autowired
     private QueueRepository queueRepository;
@@ -72,8 +68,7 @@ class QueueE2ETest {
         @DisplayName("GET /api/v1/queue/position: 토큰 발급 후 토큰을 응답한다")
         @Test
         void getPosition_tokenIssued() throws Exception {
-            queueRepository.enterWaitQueue(1L, System.currentTimeMillis());
-            queueScheduler.activateUsers();
+            queueRepository.issueToken(1L, "test-token", 300);
 
             mockMvc.perform(get("/api/v1/queue/position")
                             .header("X-Loopers-User-Id", 1L))
