@@ -7,4 +7,6 @@ public interface ProductRankingRepository {
     boolean exists(String key);
 
     void setTtlIfAbsent(String key, long ttlSeconds);
+
+    void unionStoreWithWeight(String destKey, String sourceKey, double weight);
 }
