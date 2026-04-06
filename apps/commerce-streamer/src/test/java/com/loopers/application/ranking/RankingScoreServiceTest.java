@@ -58,21 +58,21 @@ class RankingScoreServiceTest {
         verify(productRankingRepository).setTtlIfAbsent(todayKey, 172_800);
     }
 
-    @DisplayName("ORDER_PLACED 이벤트는 가중치 0.7 * quantity로 점수를 증가시킨다")
+    @DisplayName("ORDER_PLACED 이벤트는 수량과 무관하게 건당 고정 0.7로 점수를 증가시킨다")
     @Test
     void updateScore_orderPlaced() {
         rankingScoreService.updateScore("ORDER_PLACED", 10L, 3);
 
-        verify(productRankingRepository).incrementScore(org.mockito.ArgumentMatchers.eq(todayKey), org.mockito.ArgumentMatchers.eq(10L), eq(2.1, 0.001));
+        verify(productRankingRepository).incrementScore(todayKey, 10L, 0.7);
         verify(productRankingRepository).setTtlIfAbsent(todayKey, 172_800);
     }
 
-    @DisplayName("ORDER_CANCELLED 이벤트는 가중치 -0.7 * quantity로 점수를 감소시킨다")
+    @DisplayName("ORDER_CANCELLED 이벤트는 수량과 무관하게 건당 고정 -0.7로 점수를 감소시킨다")
     @Test
     void updateScore_orderCancelled() {
         rankingScoreService.updateScore("ORDER_CANCELLED", 10L, 2);
 
-        verify(productRankingRepository).incrementScore(org.mockito.ArgumentMatchers.eq(todayKey), org.mockito.ArgumentMatchers.eq(10L), eq(-1.4, 0.001));
+        verify(productRankingRepository).incrementScore(todayKey, 10L, -0.7);
         verify(productRankingRepository).setTtlIfAbsent(todayKey, 172_800);
     }
 

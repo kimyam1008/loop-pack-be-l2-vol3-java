@@ -40,8 +40,8 @@ public class RankingScoreService {
             case "PRODUCT_VIEWED" -> WEIGHT_VIEW;
             case "PRODUCT_LIKED" -> WEIGHT_LIKE;
             case "PRODUCT_UNLIKED" -> -WEIGHT_LIKE;
-            case "ORDER_PLACED" -> WEIGHT_ORDER * quantity;
-            case "ORDER_CANCELLED" -> -(WEIGHT_ORDER * quantity);
+            case "ORDER_PLACED" -> WEIGHT_ORDER;
+            case "ORDER_CANCELLED" -> -WEIGHT_ORDER;
             default -> 0.0;
         };
     }

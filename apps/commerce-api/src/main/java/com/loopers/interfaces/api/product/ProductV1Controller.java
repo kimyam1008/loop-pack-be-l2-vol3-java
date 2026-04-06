@@ -60,8 +60,9 @@ public class ProductV1Controller {
     }
 
     @GetMapping("/api-admin/v1/products/{productId}")
-    public ApiResponse<ProductV1Dto.ProductDetailResponse> getAdminProduct(@PathVariable Long productId) {
-        return getProduct(productId);
+    public ApiResponse<ProductV1Dto.ProductResponse> getAdminProduct(@PathVariable Long productId) {
+        ProductDto.ProductInfo product = productFacade.getProduct(productId);
+        return ApiResponse.success(ProductV1Dto.ProductResponse.from(product));
     }
 
     @PostMapping("/api-admin/v1/products")

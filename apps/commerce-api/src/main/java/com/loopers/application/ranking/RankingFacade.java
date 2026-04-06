@@ -7,6 +7,7 @@ import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductRepository;
 import com.loopers.domain.ranking.RankingEntry;
 import com.loopers.domain.ranking.RankingRepository;
+import com.loopers.infrastructure.ranking.RankingCacheStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,9 +31,21 @@ public class RankingFacade {
     private final RankingRepository rankingRepository;
     private final ProductRepository productRepository;
     private final BrandRepository brandRepository;
+    private final RankingCacheStore rankingCacheStore;
 
     @Transactional(readOnly = true)
     public List<RankingDto.RankingItemInfo> getRankings(String date, int page, int size) {
+        return rankingCacheStore.getRankings(date, page, size)
+            .orElseGet(() -> {
+                List<RankingDto.RankingItemInfo> result = loadRankings(date, page, size);
+                if (!result.isEmpty()) {
+                    rankingCacheStore.putRankings(date, page, size, result);
+                }
+                return result;
+            });
+    }
+
+    private List<RankingDto.RankingItemInfo> loadRankings(String date, int page, int size) {
         String key = RANKING_KEY_PREFIX + date;
         long start = (long) page * size;
         long end = start + size - 1;

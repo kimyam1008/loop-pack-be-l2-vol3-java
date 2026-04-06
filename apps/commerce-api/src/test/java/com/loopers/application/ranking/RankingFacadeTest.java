@@ -8,6 +8,7 @@ import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductRepository;
 import com.loopers.domain.ranking.RankingEntry;
 import com.loopers.domain.ranking.RankingRepository;
+import com.loopers.infrastructure.ranking.RankingCacheStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -27,6 +29,7 @@ class RankingFacadeTest {
     private RankingRepository rankingRepository;
     private ProductRepository productRepository;
     private BrandRepository brandRepository;
+    private RankingCacheStore rankingCacheStore;
     private RankingFacade rankingFacade;
 
     private final String todayKey = "ranking:all:" +
@@ -37,7 +40,10 @@ class RankingFacadeTest {
         rankingRepository = mock(RankingRepository.class);
         productRepository = mock(ProductRepository.class);
         brandRepository = mock(BrandRepository.class);
-        rankingFacade = new RankingFacade(rankingRepository, productRepository, brandRepository);
+        rankingCacheStore = mock(RankingCacheStore.class);
+        rankingFacade = new RankingFacade(rankingRepository, productRepository, brandRepository, rankingCacheStore);
+
+        when(rankingCacheStore.getRankings(anyString(), anyInt(), anyInt())).thenReturn(Optional.empty());
     }
 
     @DisplayName("랭킹 페이지 조회 시 상품 정보가 포함된 랭킹 목록을 반환한다")
@@ -112,6 +118,42 @@ class RankingFacadeTest {
         rankingFacade.getRankings(date, 1, 20);
 
         verify(rankingRepository).getTopRankings(key, 20, 39);
+    }
+
+    @DisplayName("캐시 적중 시 ZSET과 DB를 조회하지 않는다")
+    @Test
+    void getRankings_cacheHit_skipsZsetAndDb() {
+        List<RankingDto.RankingItemInfo> cached = List.of(
+            new RankingDto.RankingItemInfo(1, 5.0, 10L, "상품A", "브랜드", BigDecimal.valueOf(10000))
+        );
+        when(rankingCacheStore.getRankings("20260405", 0, 20)).thenReturn(Optional.of(cached));
+
+        List<RankingDto.RankingItemInfo> result = rankingFacade.getRankings("20260405", 0, 20);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).productName()).isEqualTo("상품A");
+        verify(rankingRepository, never()).getTopRankings(anyString(), anyLong(), anyLong());
+        verify(productRepository, never()).findAllByIds(anyCollection());
+    }
+
+    @DisplayName("캐시 미스 시 조회 결과를 캐시에 저장한다")
+    @Test
+    void getRankings_cacheMiss_savesToCache() {
+        String date = "20260405";
+        RankingEntry entry = new RankingEntry(10L, 5.0);
+        when(rankingRepository.getTopRankings("ranking:all:" + date, 0, 19)).thenReturn(List.of(entry));
+
+        Product product = Product.create(1L, "상품A", "설명A", BigDecimal.valueOf(10000), 100);
+        setId(product, 10L);
+        when(productRepository.findAllByIds(anyCollection())).thenReturn(List.of(product));
+
+        Brand brand = Brand.create(new BrandName("브랜드"), new BrandDescription("설명"));
+        setId(brand, 1L);
+        when(brandRepository.findAllByIds(anyCollection())).thenReturn(List.of(brand));
+
+        rankingFacade.getRankings(date, 0, 20);
+
+        verify(rankingCacheStore).putRankings(eq(date), eq(0), eq(20), anyList());
     }
 
     private void setId(Object entity, Long id) {
