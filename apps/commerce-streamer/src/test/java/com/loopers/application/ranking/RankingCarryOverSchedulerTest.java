@@ -19,8 +19,8 @@ class RankingCarryOverSchedulerTest {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private final String todayKey = "ranking:all:" +
         LocalDate.now(ZoneId.of("Asia/Seoul")).format(DATE_FORMAT);
-    private final String tomorrowKey = "ranking:all:" +
-        LocalDate.now(ZoneId.of("Asia/Seoul")).plusDays(1).format(DATE_FORMAT);
+    private final String yesterdayKey = "ranking:all:" +
+        LocalDate.now(ZoneId.of("Asia/Seoul")).minusDays(1).format(DATE_FORMAT);
 
     @BeforeEach
     void setUp() {
@@ -28,21 +28,33 @@ class RankingCarryOverSchedulerTest {
         scheduler = new RankingCarryOverScheduler(productRankingRepository);
     }
 
-    @DisplayName("오늘 랭킹 데이터가 있으면 10% 가중치로 내일 키에 복사한다")
+    @DisplayName("어제 랭킹 데이터가 있고 오늘 키가 없으면 10% 가중치로 복사한다")
     @Test
     void carryOver_copiesWithWeight() {
-        when(productRankingRepository.exists(todayKey)).thenReturn(true);
+        when(productRankingRepository.exists(yesterdayKey)).thenReturn(true);
+        when(productRankingRepository.exists(todayKey)).thenReturn(false);
 
         scheduler.carryOver();
 
-        verify(productRankingRepository).unionStoreWithWeight(tomorrowKey, todayKey, 0.1);
-        verify(productRankingRepository).setTtlIfAbsent(tomorrowKey, 172_800);
+        verify(productRankingRepository).unionStoreWithWeight(todayKey, yesterdayKey, 0.1);
+        verify(productRankingRepository).setTtlIfAbsent(todayKey, 172_800);
     }
 
-    @DisplayName("오늘 랭킹 데이터가 없으면 carry-over를 생략한다")
+    @DisplayName("어제 랭킹 데이터가 없으면 carry-over를 생략한다")
     @Test
-    void carryOver_noData_skips() {
-        when(productRankingRepository.exists(todayKey)).thenReturn(false);
+    void carryOver_noYesterdayData_skips() {
+        when(productRankingRepository.exists(yesterdayKey)).thenReturn(false);
+
+        scheduler.carryOver();
+
+        verify(productRankingRepository, never()).unionStoreWithWeight(anyString(), anyString(), anyDouble());
+    }
+
+    @DisplayName("오늘 키가 이미 존재하면 carry-over를 생략한다 (멱등성)")
+    @Test
+    void carryOver_todayKeyExists_skips() {
+        when(productRankingRepository.exists(yesterdayKey)).thenReturn(true);
+        when(productRankingRepository.exists(todayKey)).thenReturn(true);
 
         scheduler.carryOver();
 

@@ -46,7 +46,7 @@ public class ProductV1Controller {
     @GetMapping("/api/v1/products/{productId}")
     public ApiResponse<ProductV1Dto.ProductDetailResponse> getProduct(@PathVariable Long productId) {
         ProductDto.ProductInfo product = productFacade.getProduct(productId);
-        RankingDto.ProductRankInfo rankInfo = rankingFacade.getProductRank(productId);
+        RankingDto.ProductRankInfo rankInfo = rankingFacade.getProductRank(productId, rankingFacade.todayDate());
         return ApiResponse.success(ProductV1Dto.ProductDetailResponse.of(product, rankInfo));
     }
 

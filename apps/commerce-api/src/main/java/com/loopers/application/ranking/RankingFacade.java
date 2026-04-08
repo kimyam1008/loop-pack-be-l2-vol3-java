@@ -48,9 +48,9 @@ public class RankingFacade {
     private List<RankingDto.RankingItemInfo> loadRankings(String date, int page, int size) {
         String key = RANKING_KEY_PREFIX + date;
         long start = (long) page * size;
-        long end = start + size - 1;
+        int fetchSize = size + 10; // 삭제된 상품 대비 여유분
 
-        List<RankingEntry> entries = rankingRepository.getTopRankings(key, start, end);
+        List<RankingEntry> entries = rankingRepository.getTopRankings(key, start, start + fetchSize - 1);
         if (entries.isEmpty()) {
             return List.of();
         }
@@ -70,21 +70,24 @@ public class RankingFacade {
             .collect(Collectors.toMap(Brand::getId, Brand::getName));
 
         List<RankingDto.RankingItemInfo> result = new ArrayList<>();
-        for (int i = 0; i < entries.size(); i++) {
-            RankingEntry entry = entries.get(i);
+        long rank = start + 1;
+        for (RankingEntry entry : entries) {
+            if (result.size() >= size) {
+                break;
+            }
             Product product = productMap.get(entry.productId());
             if (product == null) {
                 continue;
             }
             String brandName = brandNameMap.getOrDefault(product.getBrandId(), "");
             ProductDto.ProductInfo productInfo = ProductDto.ProductInfo.of(product, brandName);
-            result.add(RankingDto.RankingItemInfo.of(start + i + 1, entry.score(), productInfo));
+            result.add(RankingDto.RankingItemInfo.of(rank++, entry.score(), productInfo));
         }
         return result;
     }
 
-    public RankingDto.ProductRankInfo getProductRank(Long productId) {
-        String key = todayKey();
+    public RankingDto.ProductRankInfo getProductRank(Long productId, String date) {
+        String key = RANKING_KEY_PREFIX + date;
         Long rank = rankingRepository.getRank(key, productId);
         if (rank == null) {
             return new RankingDto.ProductRankInfo(null, null);
@@ -93,7 +96,7 @@ public class RankingFacade {
         return new RankingDto.ProductRankInfo(rank + 1, score);
     }
 
-    private String todayKey() {
-        return RANKING_KEY_PREFIX + LocalDate.now(ZoneId.of("Asia/Seoul")).format(DATE_FORMAT);
+    public String todayDate() {
+        return LocalDate.now(ZoneId.of("Asia/Seoul")).format(DATE_FORMAT);
     }
 }

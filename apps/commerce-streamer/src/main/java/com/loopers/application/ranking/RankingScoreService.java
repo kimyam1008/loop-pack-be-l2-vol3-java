@@ -30,9 +30,13 @@ public class RankingScoreService {
             return;
         }
 
-        String key = todayKey();
-        productRankingRepository.incrementScore(key, productId, score);
-        productRankingRepository.setTtlIfAbsent(key, TTL_SECONDS);
+        try {
+            String key = todayKey();
+            productRankingRepository.incrementScore(key, productId, score);
+            productRankingRepository.setTtlIfAbsent(key, TTL_SECONDS);
+        } catch (Exception e) {
+            log.warn("랭킹 점수 갱신 실패 (best-effort) - productId: {}, eventType: {}", productId, eventType, e);
+        }
     }
 
     private double calculateScore(String eventType, int quantity) {

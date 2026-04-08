@@ -53,7 +53,7 @@ class RankingFacadeTest {
         String key = "ranking:all:" + date;
         RankingEntry entry1 = new RankingEntry(10L, 5.0);
         RankingEntry entry2 = new RankingEntry(20L, 3.0);
-        when(rankingRepository.getTopRankings(key, 0, 19)).thenReturn(List.of(entry1, entry2));
+        when(rankingRepository.getTopRankings(eq(key), eq(0L), anyLong())).thenReturn(List.of(entry1, entry2));
 
         Product product1 = Product.create(1L, "상품A", "설명A", BigDecimal.valueOf(10000), 100);
         Product product2 = Product.create(1L, "상품B", "설명B", BigDecimal.valueOf(20000), 50);
@@ -88,10 +88,11 @@ class RankingFacadeTest {
     @DisplayName("상품 랭킹 조회 시 순위와 점수를 반환한다")
     @Test
     void getProductRank_returnsRankAndScore() {
+        String todayDate = rankingFacade.todayDate();
         when(rankingRepository.getRank(todayKey, 10L)).thenReturn(0L);
         when(rankingRepository.getScore(todayKey, 10L)).thenReturn(5.0);
 
-        RankingDto.ProductRankInfo result = rankingFacade.getProductRank(10L);
+        RankingDto.ProductRankInfo result = rankingFacade.getProductRank(10L, todayDate);
 
         assertThat(result.rank()).isEqualTo(1);
         assertThat(result.score()).isEqualTo(5.0);
@@ -100,24 +101,25 @@ class RankingFacadeTest {
     @DisplayName("랭킹에 없는 상품은 null을 반환한다")
     @Test
     void getProductRank_notInRanking_returnsNull() {
+        String todayDate = rankingFacade.todayDate();
         when(rankingRepository.getRank(todayKey, 999L)).thenReturn(null);
 
-        RankingDto.ProductRankInfo result = rankingFacade.getProductRank(999L);
+        RankingDto.ProductRankInfo result = rankingFacade.getProductRank(999L, todayDate);
 
         assertThat(result.rank()).isNull();
         assertThat(result.score()).isNull();
     }
 
-    @DisplayName("2페이지 조회 시 start/end가 올바르게 계산된다")
+    @DisplayName("2페이지 조회 시 start가 올바르게 계산된다")
     @Test
-    void getRankings_page1_calculatesCorrectRange() {
+    void getRankings_page1_calculatesCorrectStart() {
         String date = "20260405";
         String key = "ranking:all:" + date;
-        when(rankingRepository.getTopRankings(key, 20, 39)).thenReturn(List.of());
+        when(rankingRepository.getTopRankings(eq(key), eq(20L), anyLong())).thenReturn(List.of());
 
         rankingFacade.getRankings(date, 1, 20);
 
-        verify(rankingRepository).getTopRankings(key, 20, 39);
+        verify(rankingRepository).getTopRankings(eq(key), eq(20L), anyLong());
     }
 
     @DisplayName("캐시 적중 시 ZSET과 DB를 조회하지 않는다")
@@ -141,7 +143,7 @@ class RankingFacadeTest {
     void getRankings_cacheMiss_savesToCache() {
         String date = "20260405";
         RankingEntry entry = new RankingEntry(10L, 5.0);
-        when(rankingRepository.getTopRankings("ranking:all:" + date, 0, 19)).thenReturn(List.of(entry));
+        when(rankingRepository.getTopRankings(eq("ranking:all:" + date), eq(0L), anyLong())).thenReturn(List.of(entry));
 
         Product product = Product.create(1L, "상품A", "설명A", BigDecimal.valueOf(10000), 100);
         setId(product, 10L);

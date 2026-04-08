@@ -22,22 +22,27 @@ public class RankingCarryOverScheduler {
 
     private final ProductRankingRepository productRankingRepository;
 
-    @Scheduled(cron = "0 50 23 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 5 0 * * *", zone = "Asia/Seoul")
     public void carryOver() {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
-        LocalDate tomorrow = today.plusDays(1);
+        LocalDate yesterday = today.minusDays(1);
 
+        String yesterdayKey = RANKING_KEY_PREFIX + yesterday.format(DATE_FORMAT);
         String todayKey = RANKING_KEY_PREFIX + today.format(DATE_FORMAT);
-        String tomorrowKey = RANKING_KEY_PREFIX + tomorrow.format(DATE_FORMAT);
 
-        if (!productRankingRepository.exists(todayKey)) {
-            log.info("오늘 랭킹 데이터 없음 - carry-over 생략: {}", todayKey);
+        if (!productRankingRepository.exists(yesterdayKey)) {
+            log.info("어제 랭킹 데이터 없음 - carry-over 생략: {}", yesterdayKey);
             return;
         }
 
-        productRankingRepository.unionStoreWithWeight(tomorrowKey, todayKey, CARRY_OVER_WEIGHT);
-        productRankingRepository.setTtlIfAbsent(tomorrowKey, TTL_SECONDS);
+        if (productRankingRepository.exists(todayKey)) {
+            log.info("오늘 랭킹 키 이미 존재 - carry-over 생략 (멱등성): {}", todayKey);
+            return;
+        }
 
-        log.info("Score carry-over 완료: {} → {} (weight: {})", todayKey, tomorrowKey, CARRY_OVER_WEIGHT);
+        productRankingRepository.unionStoreWithWeight(todayKey, yesterdayKey, CARRY_OVER_WEIGHT);
+        productRankingRepository.setTtlIfAbsent(todayKey, TTL_SECONDS);
+
+        log.info("Score carry-over 완료: {} → {} (weight: {})", yesterdayKey, todayKey, CARRY_OVER_WEIGHT);
     }
 }
