@@ -8,7 +8,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.time.Duration;
-import java.util.Collections;
+import java.util.List;
 
 @Repository
 @RequiredArgsConstructor
@@ -35,13 +35,21 @@ public class RedisProductRankingRepository implements ProductRankingRepository {
     }
 
     @Override
-    public void unionStoreWithWeight(String destKey, String sourceKey, double weight) {
+    public void unionStoreWithWeights(String destKey, double destWeight, String sourceKey, double sourceWeight) {
+        // ZUNIONSTORE destKey 2 destKey sourceKey WEIGHTS destWeight sourceWeight AGGREGATE SUM
         redisTemplate.opsForZSet().unionAndStore(
-            sourceKey,
-            Collections.emptyList(),
+            destKey,
+            List.of(sourceKey),
             destKey,
             Aggregate.SUM,
-            Weights.of(weight)
+            Weights.of(destWeight, sourceWeight)
         );
+    }
+
+    @Override
+    public boolean markIfAbsent(String key, long ttlSeconds) {
+        Boolean result = redisTemplate.opsForValue()
+            .setIfAbsent(key, "1", Duration.ofSeconds(ttlSeconds));
+        return Boolean.TRUE.equals(result);
     }
 }

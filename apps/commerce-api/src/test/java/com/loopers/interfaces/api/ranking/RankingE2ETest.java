@@ -175,6 +175,35 @@ class RankingE2ETest {
             .andExpect(jsonPath("$.data.rankScore").doesNotExist());
     }
 
+    @DisplayName("일자 변경: 어제 날짜의 랭킹도 정상적으로 조회된다 (TTL 이내)")
+    @Test
+    void getRankings_pastDate_returnsData() throws Exception {
+        String yesterday = LocalDate.now(ZoneId.of("Asia/Seoul")).minusDays(1)
+            .format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String yesterdayKey = "ranking:all:" + yesterday;
+
+        // 어제 날짜 키에 점수 적재
+        redisTemplate.opsForZSet().incrementScore(yesterdayKey, productId1.toString(), 2.5);
+        redisTemplate.opsForZSet().incrementScore(yesterdayKey, productId2.toString(), 1.8);
+
+        mockMvc.perform(get("/api/v1/rankings")
+                .param("date", yesterday)
+                .param("size", "20")
+                .param("page", "0"))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.meta.result").value("SUCCESS"))
+            .andExpect(jsonPath("$.data.content.length()").value(2))
+            // 1위: 에어맥스 (2.5)
+            .andExpect(jsonPath("$.data.content[0].rank").value(1))
+            .andExpect(jsonPath("$.data.content[0].productId").value(productId1))
+            .andExpect(jsonPath("$.data.content[0].score").value(2.5))
+            // 2위: 조던1 (1.8)
+            .andExpect(jsonPath("$.data.content[1].rank").value(2))
+            .andExpect(jsonPath("$.data.content[1].productId").value(productId2))
+            .andExpect(jsonPath("$.data.content[1].score").value(1.8));
+    }
+
     @DisplayName("가중치 검증: 주문 1건(0.7) > 좋아요 3건(0.6)")
     @Test
     void weightVerification_orderBeatsLikes() throws Exception {
