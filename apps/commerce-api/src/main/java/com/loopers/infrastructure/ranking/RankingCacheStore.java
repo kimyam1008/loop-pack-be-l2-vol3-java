@@ -18,7 +18,7 @@ import java.util.Optional;
 public class RankingCacheStore {
 
     private static final String RANKING_CACHE_KEY_PREFIX = "ranking:cache:";
-    private static final Duration RANKING_CACHE_TTL = Duration.ofMinutes(1);
+    private static final Duration RANKING_CACHE_TTL = Duration.ofMinutes(5);
 
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
