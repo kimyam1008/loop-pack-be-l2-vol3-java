@@ -5,9 +5,12 @@ import lombok.Getter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Entity
-@Table(name = "product_metrics")
+@Table(name = "product_metrics", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_product_date", columnNames = {"product_id", "metric_date"})
+})
 @Getter
 public class ProductMetrics {
 
@@ -15,8 +18,11 @@ public class ProductMetrics {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "product_id", nullable = false, unique = true)
+    @Column(name = "product_id", nullable = false)
     private Long productId;
+
+    @Column(name = "metric_date", nullable = false)
+    private LocalDate metricDate;
 
     @Column(name = "view_count", nullable = false)
     private long viewCount;
@@ -36,9 +42,10 @@ public class ProductMetrics {
     protected ProductMetrics() {
     }
 
-    public static ProductMetrics create(Long productId) {
+    public static ProductMetrics create(Long productId, LocalDate metricDate) {
         ProductMetrics metrics = new ProductMetrics();
         metrics.productId = productId;
+        metrics.metricDate = metricDate;
         metrics.viewCount = 0;
         metrics.likeCount = 0;
         metrics.salesCount = 0;
