@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -53,6 +54,9 @@ class RankingE2ETest {
 
     @Autowired
     private RedisCleanUp redisCleanUp;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     private static final String TODAY = LocalDate.now(ZoneId.of("Asia/Seoul"))
         .format(DateTimeFormatter.ofPattern("yyyyMMdd"));
@@ -222,5 +226,73 @@ class RankingE2ETest {
             .andExpect(jsonPath("$.data.content[0].score").value(0.7))
             .andExpect(jsonPath("$.data.content[1].productId").value(productId1))
             .andExpect(jsonPath("$.data.content[1].score").value(0.6));
+    }
+
+    @DisplayName("GET /api/v1/rankings?period=daily: 기존 일간 랭킹과 동일하게 동작한다")
+    @Test
+    void getRankings_dailyPeriod() throws Exception {
+        mockMvc.perform(get("/api/v1/rankings")
+                .param("period", "daily")
+                .param("date", TODAY))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content.length()").value(3));
+    }
+
+    @DisplayName("GET /api/v1/rankings?period=weekly: MV 테이블에서 주간 랭킹을 조회한다")
+    @Test
+    void getRankings_weeklyPeriod() throws Exception {
+        // MV 테이블에 직접 데이터 적재 (배치가 적재한 것으로 시뮬레이션)
+        jdbcTemplate.update(
+            "INSERT INTO mv_product_rank_weekly (product_id, score, ranking, view_count, like_count, sales_count, aggregated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            productId2, 29.5, 1, 200, 30, 5, LocalDate.parse(TODAY, DateTimeFormatter.ofPattern("yyyyMMdd"))
+        );
+        jdbcTemplate.update(
+            "INSERT INTO mv_product_rank_weekly (product_id, score, ranking, view_count, like_count, sales_count, aggregated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            productId1, 27.0, 2, 100, 50, 10, LocalDate.parse(TODAY, DateTimeFormatter.ofPattern("yyyyMMdd"))
+        );
+
+        mockMvc.perform(get("/api/v1/rankings")
+                .param("period", "weekly")
+                .param("date", TODAY))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content.length()").value(2))
+            .andExpect(jsonPath("$.data.content[0].rank").value(1))
+            .andExpect(jsonPath("$.data.content[0].productId").value(productId2))
+            .andExpect(jsonPath("$.data.content[0].score").value(29.5))
+            .andExpect(jsonPath("$.data.content[0].productName").value("조던1"))
+            .andExpect(jsonPath("$.data.content[0].brandName").value("NIKE"))
+            .andExpect(jsonPath("$.data.content[1].rank").value(2))
+            .andExpect(jsonPath("$.data.content[1].productId").value(productId1));
+    }
+
+    @DisplayName("GET /api/v1/rankings?period=monthly: MV 테이블에서 월간 랭킹을 조회한다")
+    @Test
+    void getRankings_monthlyPeriod() throws Exception {
+        jdbcTemplate.update(
+            "INSERT INTO mv_product_rank_monthly (product_id, score, ranking, view_count, like_count, sales_count, aggregated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            productId3, 64.0, 1, 300, 100, 20, LocalDate.parse(TODAY, DateTimeFormatter.ofPattern("yyyyMMdd"))
+        );
+
+        mockMvc.perform(get("/api/v1/rankings")
+                .param("period", "monthly")
+                .param("date", TODAY))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content.length()").value(1))
+            .andExpect(jsonPath("$.data.content[0].rank").value(1))
+            .andExpect(jsonPath("$.data.content[0].productId").value(productId3))
+            .andExpect(jsonPath("$.data.content[0].score").value(64.0));
+    }
+
+    @DisplayName("GET /api/v1/rankings: period 미입력 시 daily로 동작한다")
+    @Test
+    void getRankings_noPeriod_defaultsToDaily() throws Exception {
+        mockMvc.perform(get("/api/v1/rankings")
+                .param("date", TODAY))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content.length()").value(3));
     }
 }
