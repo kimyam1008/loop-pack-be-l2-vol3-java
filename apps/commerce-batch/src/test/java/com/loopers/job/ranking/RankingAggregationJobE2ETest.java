@@ -52,6 +52,12 @@ class RankingAggregationJobE2ETest {
         jdbcTemplate.execute("DELETE FROM mv_product_rank_weekly");
         jdbcTemplate.execute("DELETE FROM mv_product_rank_monthly");
         jdbcTemplate.execute("DELETE FROM product_metrics");
+        jdbcTemplate.execute("DELETE FROM products");
+
+        // 기본 상품 데이터 (활성 상태)
+        for (long id = 1; id <= 4; id++) {
+            insertProduct(id, false);
+        }
     }
 
     @DisplayName("baseDate 파라미터 없이 실행하면 Job이 실패한다")
@@ -152,6 +158,39 @@ class RankingAggregationJobE2ETest {
 
         var weeklyRanks = weeklyRepository.findByAggregatedAtOrderByRankAsc(BASE_DATE);
         assertThat(weeklyRanks).hasSize(2);
+    }
+
+    @DisplayName("soft delete된 상품은 랭킹 집계에서 제외된다")
+    @Test
+    void excludesSoftDeletedProducts() throws Exception {
+        jobLauncherTestUtils.setJob(job);
+
+        // 상품 3을 삭제 상태로 변경
+        jdbcTemplate.update("UPDATE products SET deleted_at = '2026-04-01 00:00:00' WHERE id = 3");
+
+        insertMetrics(1L, BASE_DATE, 100, 50, 10);  // score = 27.0
+        insertMetrics(2L, BASE_DATE, 200, 30, 5);   // score = 29.5
+        insertMetrics(3L, BASE_DATE, 500, 200, 50);  // score = 125.0 (최고점이지만 삭제됨)
+
+        var jobParameters = new JobParametersBuilder()
+            .addLocalDate("baseDate", BASE_DATE)
+            .addLong("run.id", RUN_ID.getAndIncrement())
+            .toJobParameters();
+        jobLauncherTestUtils.launchJob(jobParameters);
+
+        var weeklyRanks = weeklyRepository.findByAggregatedAtOrderByRankAsc(BASE_DATE);
+        assertThat(weeklyRanks).hasSize(2);
+        assertThat(weeklyRanks.get(0).getProductId()).isEqualTo(2L); // 29.5 → 1위
+        assertThat(weeklyRanks.get(1).getProductId()).isEqualTo(1L); // 27.0 → 2위
+        // 삭제된 상품 3은 제외
+    }
+
+    private void insertProduct(Long productId, boolean deleted) {
+        jdbcTemplate.update(
+            "INSERT INTO products (id, brand_id, name, price, stock, like_count, version, created_at, updated_at, deleted_at) " +
+                "VALUES (?, 1, ?, 10000, 100, 0, 0, NOW(), NOW(), ?)",
+            productId, "상품" + productId, deleted ? java.sql.Timestamp.valueOf("2026-04-01 00:00:00") : null
+        );
     }
 
     private void insertMetrics(Long productId, LocalDate metricDate,

@@ -38,14 +38,15 @@ public class RankingAggregationJobConfig {
     private static final int TOP_N = 100;
 
     private static final String AGGREGATION_SQL = """
-        SELECT product_id,
-               SUM(view_count) AS view_count,
-               SUM(like_count) AS like_count,
-               SUM(sales_count) AS sales_count
-        FROM product_metrics
-        WHERE metric_date BETWEEN ? AND ?
-        GROUP BY product_id
-        ORDER BY (SUM(view_count) * 0.1 + SUM(like_count) * 0.2 + SUM(sales_count) * 0.7) DESC
+        SELECT pm.product_id,
+               SUM(pm.view_count) AS view_count,
+               SUM(pm.like_count) AS like_count,
+               SUM(pm.sales_count) AS sales_count
+        FROM product_metrics pm
+        INNER JOIN products p ON pm.product_id = p.id AND p.deleted_at IS NULL
+        WHERE pm.metric_date BETWEEN ? AND ?
+        GROUP BY pm.product_id
+        ORDER BY (SUM(pm.view_count) * 0.1 + SUM(pm.like_count) * 0.2 + SUM(pm.sales_count) * 0.7) DESC
         LIMIT %d
         """.formatted(TOP_N);
 
