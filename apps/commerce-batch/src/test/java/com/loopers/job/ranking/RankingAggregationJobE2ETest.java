@@ -21,6 +21,7 @@ import java.time.LocalDate;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 @SpringBootTest
 @SpringBatchTest
@@ -75,12 +76,12 @@ class RankingAggregationJobE2ETest {
     void aggregatesWeeklyAndMonthlyRankings() throws Exception {
         jobLauncherTestUtils.setJob(job);
 
-        // 최근 7일간 데이터 적재
-        insertMetrics(1L, BASE_DATE, 100, 50, 10);          // score = 10+10+7 = 27.0
-        insertMetrics(2L, BASE_DATE, 200, 30, 5);            // score = 20+6+3.5 = 29.5
-        insertMetrics(3L, BASE_DATE.minusDays(3), 50, 20, 3);// score = 5+4+2.1 = 11.1
+        // 최근 7일간 데이터 적재 (saturation k=100 기준 점수)
+        insertMetrics(1L, BASE_DATE, 100, 50, 10);          // score ≈ 0.1803
+        insertMetrics(2L, BASE_DATE, 200, 30, 5);            // score ≈ 0.1462
+        insertMetrics(3L, BASE_DATE.minusDays(3), 50, 20, 3);// score ≈ 0.0870
         // 8일 전 데이터 - 주간에는 미포함, 월간에는 포함
-        insertMetrics(4L, BASE_DATE.minusDays(8), 300, 100, 20); // score = 30+20+14 = 64.0
+        insertMetrics(4L, BASE_DATE.minusDays(8), 300, 100, 20); // score ≈ 0.2917
 
         var jobParameters = new JobParametersBuilder()
             .addLocalDate("baseDate", BASE_DATE)
@@ -92,16 +93,17 @@ class RankingAggregationJobE2ETest {
             .isEqualTo(ExitStatus.COMPLETED.getExitCode());
 
         // 주간: 상품 1, 2, 3만 포함 (4는 8일 전이라 제외)
+        // saturation 적용 시 like/sales 비율이 좋은 상품1이 상품2보다 앞선다.
         var weeklyRanks = weeklyRepository.findByAggregatedAtOrderByRankAsc(BASE_DATE);
         assertThat(weeklyRanks).hasSize(3);
-        assertThat(weeklyRanks.get(0).getProductId()).isEqualTo(2L); // 29.5 → 1위
-        assertThat(weeklyRanks.get(1).getProductId()).isEqualTo(1L); // 27.0 → 2위
-        assertThat(weeklyRanks.get(2).getProductId()).isEqualTo(3L); // 11.1 → 3위
+        assertThat(weeklyRanks.get(0).getProductId()).isEqualTo(1L); // 0.1803 → 1위
+        assertThat(weeklyRanks.get(1).getProductId()).isEqualTo(2L); // 0.1462 → 2위
+        assertThat(weeklyRanks.get(2).getProductId()).isEqualTo(3L); // 0.0870 → 3위
 
         // 월간: 모든 상품 포함
         var monthlyRanks = monthlyRepository.findByAggregatedAtOrderByRankAsc(BASE_DATE);
         assertThat(monthlyRanks).hasSize(4);
-        assertThat(monthlyRanks.get(0).getProductId()).isEqualTo(4L); // 64.0 → 1위
+        assertThat(monthlyRanks.get(0).getProductId()).isEqualTo(4L); // 0.2917 → 1위
     }
 
     @DisplayName("같은 상품이 여러 날짜에 걸쳐 있으면 합산된다")
@@ -113,7 +115,9 @@ class RankingAggregationJobE2ETest {
         insertMetrics(1L, BASE_DATE, 50, 10, 5);
         insertMetrics(1L, BASE_DATE.minusDays(1), 30, 20, 3);
         insertMetrics(1L, BASE_DATE.minusDays(2), 20, 10, 2);
-        // 합계: view=100, like=40, sales=10 → score = 10+8+7 = 25.0
+        // 합계: view=100, like=40, sales=10
+        // saturation 점수 (k=100):
+        //   (100/200)*0.1 + (40/140)*0.2 + (10/110)*0.7 ≈ 0.1708
 
         var jobParameters = new JobParametersBuilder()
             .addLocalDate("baseDate", BASE_DATE)
@@ -123,7 +127,7 @@ class RankingAggregationJobE2ETest {
 
         var weeklyRanks = weeklyRepository.findByAggregatedAtOrderByRankAsc(BASE_DATE);
         assertThat(weeklyRanks).hasSize(1);
-        assertThat(weeklyRanks.get(0).getScore()).isEqualTo(25.0);
+        assertThat(weeklyRanks.get(0).getScore()).isCloseTo(0.1708, within(0.0001));
         assertThat(weeklyRanks.get(0).getViewCount()).isEqualTo(100);
         assertThat(weeklyRanks.get(0).getLikeCount()).isEqualTo(40);
         assertThat(weeklyRanks.get(0).getSalesCount()).isEqualTo(10);
@@ -167,9 +171,9 @@ class RankingAggregationJobE2ETest {
         // 상품 3을 삭제 상태로 변경
         jdbcTemplate.update("UPDATE products SET deleted_at = '2026-04-01 00:00:00' WHERE id = 3");
 
-        insertMetrics(1L, BASE_DATE, 100, 50, 10);  // score = 27.0
-        insertMetrics(2L, BASE_DATE, 200, 30, 5);   // score = 29.5
-        insertMetrics(3L, BASE_DATE, 500, 200, 50);  // score = 125.0 (최고점이지만 삭제됨)
+        insertMetrics(1L, BASE_DATE, 100, 50, 10);   // saturation score ≈ 0.1803
+        insertMetrics(2L, BASE_DATE, 200, 30, 5);    // saturation score ≈ 0.1462
+        insertMetrics(3L, BASE_DATE, 500, 200, 50);  // 최고점이지만 삭제됨
 
         var jobParameters = new JobParametersBuilder()
             .addLocalDate("baseDate", BASE_DATE)
@@ -179,8 +183,8 @@ class RankingAggregationJobE2ETest {
 
         var weeklyRanks = weeklyRepository.findByAggregatedAtOrderByRankAsc(BASE_DATE);
         assertThat(weeklyRanks).hasSize(2);
-        assertThat(weeklyRanks.get(0).getProductId()).isEqualTo(2L); // 29.5 → 1위
-        assertThat(weeklyRanks.get(1).getProductId()).isEqualTo(1L); // 27.0 → 2위
+        assertThat(weeklyRanks.get(0).getProductId()).isEqualTo(1L); // 0.1803 → 1위
+        assertThat(weeklyRanks.get(1).getProductId()).isEqualTo(2L); // 0.1462 → 2위
         // 삭제된 상품 3은 제외
     }
 

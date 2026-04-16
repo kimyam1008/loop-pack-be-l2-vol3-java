@@ -37,6 +37,10 @@ public class RankingAggregationJobConfig {
     private static final int CHUNK_SIZE = 100;
     private static final int TOP_N = 100;
 
+    // saturation 상수: ProductMetricsAggregation.SATURATION_K(=100)와 일치해야 한다.
+    // TODO: 실제 운영 데이터로 튜닝 필요. 현재는 임의값.
+    private static final double SATURATION_K = 100.0;
+
     private static final String AGGREGATION_SQL = """
         SELECT pm.product_id,
                SUM(pm.view_count) AS view_count,
@@ -46,9 +50,13 @@ public class RankingAggregationJobConfig {
         INNER JOIN products p ON pm.product_id = p.id AND p.deleted_at IS NULL
         WHERE pm.metric_date BETWEEN ? AND ?
         GROUP BY pm.product_id
-        ORDER BY (SUM(pm.view_count) * 0.1 + SUM(pm.like_count) * 0.2 + SUM(pm.sales_count) * 0.7) DESC
-        LIMIT %d
-        """.formatted(TOP_N);
+        ORDER BY (
+            GREATEST(SUM(pm.view_count), 0)  / (GREATEST(SUM(pm.view_count), 0)  + %1$s) * 0.1 +
+            GREATEST(SUM(pm.like_count), 0)  / (GREATEST(SUM(pm.like_count), 0)  + %1$s) * 0.2 +
+            GREATEST(SUM(pm.sales_count), 0) / (GREATEST(SUM(pm.sales_count), 0) + %1$s) * 0.7
+        ) DESC
+        LIMIT %2$s
+        """.formatted(SATURATION_K, TOP_N);
 
     private final JobRepository jobRepository;
     private final PlatformTransactionManager transactionManager;

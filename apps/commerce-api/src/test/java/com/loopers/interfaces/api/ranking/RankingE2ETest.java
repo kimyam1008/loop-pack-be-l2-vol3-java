@@ -242,14 +242,14 @@ class RankingE2ETest {
     @DisplayName("GET /api/v1/rankings?period=weekly: MV 테이블에서 주간 랭킹을 조회한다")
     @Test
     void getRankings_weeklyPeriod() throws Exception {
-        // MV 테이블에 직접 데이터 적재 (배치가 적재한 것으로 시뮬레이션)
+        // MV 테이블에 직접 데이터 적재 (배치가 적재한 것으로 시뮬레이션, saturation 기반 점수)
         jdbcTemplate.update(
             "INSERT INTO mv_product_rank_weekly (product_id, score, ranking, view_count, like_count, sales_count, aggregated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            productId2, 29.5, 1, 200, 30, 5, LocalDate.parse(TODAY, DateTimeFormatter.ofPattern("yyyyMMdd"))
+            productId2, 0.1462, 1, 200, 30, 5, LocalDate.parse(TODAY, DateTimeFormatter.ofPattern("yyyyMMdd"))
         );
         jdbcTemplate.update(
             "INSERT INTO mv_product_rank_weekly (product_id, score, ranking, view_count, like_count, sales_count, aggregated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            productId1, 27.0, 2, 100, 50, 10, LocalDate.parse(TODAY, DateTimeFormatter.ofPattern("yyyyMMdd"))
+            productId1, 0.1803, 2, 100, 50, 10, LocalDate.parse(TODAY, DateTimeFormatter.ofPattern("yyyyMMdd"))
         );
 
         mockMvc.perform(get("/api/v1/rankings")
@@ -260,7 +260,7 @@ class RankingE2ETest {
             .andExpect(jsonPath("$.data.content.length()").value(2))
             .andExpect(jsonPath("$.data.content[0].rank").value(1))
             .andExpect(jsonPath("$.data.content[0].productId").value(productId2))
-            .andExpect(jsonPath("$.data.content[0].score").value(29.5))
+            .andExpect(jsonPath("$.data.content[0].score").value(0.1462))
             .andExpect(jsonPath("$.data.content[0].productName").value("조던1"))
             .andExpect(jsonPath("$.data.content[0].brandName").value("NIKE"))
             .andExpect(jsonPath("$.data.content[1].rank").value(2))
@@ -272,7 +272,7 @@ class RankingE2ETest {
     void getRankings_monthlyPeriod() throws Exception {
         jdbcTemplate.update(
             "INSERT INTO mv_product_rank_monthly (product_id, score, ranking, view_count, like_count, sales_count, aggregated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            productId3, 64.0, 1, 300, 100, 20, LocalDate.parse(TODAY, DateTimeFormatter.ofPattern("yyyyMMdd"))
+            productId3, 0.2917, 1, 300, 100, 20, LocalDate.parse(TODAY, DateTimeFormatter.ofPattern("yyyyMMdd"))
         );
 
         mockMvc.perform(get("/api/v1/rankings")
@@ -283,7 +283,7 @@ class RankingE2ETest {
             .andExpect(jsonPath("$.data.content.length()").value(1))
             .andExpect(jsonPath("$.data.content[0].rank").value(1))
             .andExpect(jsonPath("$.data.content[0].productId").value(productId3))
-            .andExpect(jsonPath("$.data.content[0].score").value(64.0));
+            .andExpect(jsonPath("$.data.content[0].score").value(0.2917));
     }
 
     @DisplayName("GET /api/v1/rankings: period 미입력 시 daily로 동작한다")
