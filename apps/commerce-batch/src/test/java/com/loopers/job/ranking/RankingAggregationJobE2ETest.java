@@ -1,7 +1,6 @@
 package com.loopers.job.ranking;
 
 import com.loopers.batch.job.ranking.RankingAggregationJobConfig;
-import com.loopers.infrastructure.metrics.ProductMetricsBatchJpaRepository;
 import com.loopers.infrastructure.ranking.MvProductRankWeeklyJpaRepository;
 import com.loopers.infrastructure.ranking.MvProductRankMonthlyJpaRepository;
 import org.junit.jupiter.api.BeforeEach;

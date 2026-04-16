@@ -39,19 +39,15 @@ public class RankingFacade {
 
     @Transactional(readOnly = true)
     public List<RankingDto.RankingItemInfo> getRankings(String period, String date, int page, int size) {
-        return switch (period) {
-            case "weekly" -> loadMvRankings(date, page, size, true);
-            case "monthly" -> loadMvRankings(date, page, size, false);
-            default -> getDailyRankings(date, page, size);
-        };
-    }
-
-    private List<RankingDto.RankingItemInfo> getDailyRankings(String date, int page, int size) {
-        return rankingCacheStore.getRankings(date, page, size)
+        return rankingCacheStore.getRankings(period, date, page, size)
             .orElseGet(() -> {
-                List<RankingDto.RankingItemInfo> result = loadRankings(date, page, size);
+                List<RankingDto.RankingItemInfo> result = switch (period) {
+                    case "weekly" -> loadMvRankings(date, page, size, true);
+                    case "monthly" -> loadMvRankings(date, page, size, false);
+                    default -> loadRankings(date, page, size);
+                };
                 if (!result.isEmpty()) {
-                    rankingCacheStore.putRankings(date, page, size, result);
+                    rankingCacheStore.putRankings(period, date, page, size, result);
                 }
                 return result;
             });

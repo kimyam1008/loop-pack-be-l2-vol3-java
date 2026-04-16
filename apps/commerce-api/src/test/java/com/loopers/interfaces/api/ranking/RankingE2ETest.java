@@ -295,4 +295,61 @@ class RankingE2ETest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.content.length()").value(3));
     }
+
+    @DisplayName("주간 랭킹은 캐시에서 조회되며, DB 데이터가 변경되어도 캐시된 결과를 반환한다")
+    @Test
+    void getRankings_weekly_usesCache() throws Exception {
+        jdbcTemplate.update(
+            "INSERT INTO mv_product_rank_weekly (product_id, score, ranking, view_count, like_count, sales_count, aggregated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            productId1, 10.0, 1, 100, 50, 10, LocalDate.parse(TODAY, DateTimeFormatter.ofPattern("yyyyMMdd"))
+        );
+
+        // 첫 번째 조회 → DB에서 읽고 캐시에 저장
+        mockMvc.perform(get("/api/v1/rankings")
+                .param("period", "weekly")
+                .param("date", TODAY))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content.length()").value(1))
+            .andExpect(jsonPath("$.data.content[0].productId").value(productId1));
+
+        // MV 테이블을 다른 데이터로 교체 (캐시 미적용 시 이 결과가 보여야 함)
+        jdbcTemplate.update("DELETE FROM mv_product_rank_weekly");
+        jdbcTemplate.update(
+            "INSERT INTO mv_product_rank_weekly (product_id, score, ranking, view_count, like_count, sales_count, aggregated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            productId2, 20.0, 1, 200, 30, 5, LocalDate.parse(TODAY, DateTimeFormatter.ofPattern("yyyyMMdd"))
+        );
+
+        // 두 번째 조회 → 캐시에서 반환되므로 여전히 productId1이 나와야 함
+        mockMvc.perform(get("/api/v1/rankings")
+                .param("period", "weekly")
+                .param("date", TODAY))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content.length()").value(1))
+            .andExpect(jsonPath("$.data.content[0].productId").value(productId1));
+    }
+
+    @DisplayName("월간 랭킹도 캐시에서 조회된다")
+    @Test
+    void getRankings_monthly_usesCache() throws Exception {
+        jdbcTemplate.update(
+            "INSERT INTO mv_product_rank_monthly (product_id, score, ranking, view_count, like_count, sales_count, aggregated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            productId3, 50.0, 1, 300, 100, 20, LocalDate.parse(TODAY, DateTimeFormatter.ofPattern("yyyyMMdd"))
+        );
+
+        mockMvc.perform(get("/api/v1/rankings")
+                .param("period", "monthly")
+                .param("date", TODAY))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content[0].productId").value(productId3));
+
+        jdbcTemplate.update("DELETE FROM mv_product_rank_monthly");
+
+        // 캐시 적용 시 DB가 비어도 이전 결과 반환
+        mockMvc.perform(get("/api/v1/rankings")
+                .param("period", "monthly")
+                .param("date", TODAY))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content.length()").value(1))
+            .andExpect(jsonPath("$.data.content[0].productId").value(productId3));
+    }
 }
